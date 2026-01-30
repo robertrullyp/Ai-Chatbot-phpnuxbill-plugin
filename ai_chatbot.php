@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 register_menu("AI Chatbot", true, "ai_chatbot_settings", 'SETTINGS', 'fa fa-android');
 /**
  * AI Chatbot Plugin for PHPNuxBill with enhanced feature set.
@@ -81,7 +81,6 @@ function ai_chatbot_sections()
         'general' => 'general-settings',
         'chat-experience' => 'experience-settings',
         'conversation-history' => 'history-settings',
-        'authentication' => 'auth-settings',
     ];
 }
 
@@ -94,6 +93,18 @@ function ai_chatbot_section_field_map()
             'chatbot_endpoint',
             'chatbot_footer_targets',
             'chatbot_request_timeout',
+            'chatbot_auth_type',
+            'chatbot_header_key',
+            'chatbot_header_value',
+            'chatbot_as_bearer',
+            'chatbot_basic_user',
+            'chatbot_basic_pass',
+            'chatbot_jwt_token',
+            'chatbot_jwt_secret',
+            'chatbot_jwt_iss',
+            'chatbot_jwt_aud',
+            'chatbot_jwt_sub',
+            'chatbot_jwt_ttl',
         ],
         'chat-experience' => [
             'chatbot_title',
@@ -113,20 +124,6 @@ function ai_chatbot_section_field_map()
             'chatbot_history_mode',
             'chatbot_history_ttl',
             'chatbot_history_max_messages',
-        ],
-        'authentication' => [
-            'chatbot_auth_type',
-            'chatbot_header_key',
-            'chatbot_header_value',
-            'chatbot_as_bearer',
-            'chatbot_basic_user',
-            'chatbot_basic_pass',
-            'chatbot_jwt_token',
-            'chatbot_jwt_secret',
-            'chatbot_jwt_iss',
-            'chatbot_jwt_aud',
-            'chatbot_jwt_sub',
-            'chatbot_jwt_ttl',
         ],
     ];
 }
@@ -195,9 +192,38 @@ function ai_chatbot_normalize_target_path($value)
         return '';
     }
 
+    if (preg_match('#^[a-z][a-z0-9+.-]*://#i', $value)) {
+        return '';
+    }
+
     $value = str_replace('\\', '/', $value);
     $value = preg_replace('#/{2,}#', '/', $value);
-    return ltrim($value, '/');
+    $value = ltrim($value, '/');
+
+    if ($value === '') {
+        return '';
+    }
+
+    $parts = array_filter(explode('/', $value), static function ($part) {
+        return $part !== '';
+    });
+
+    $normalized_parts = [];
+    foreach ($parts as $part) {
+        if ($part === '.') {
+            continue;
+        }
+        if ($part === '..' || strpos($part, ':') !== false) {
+            return '';
+        }
+        $normalized_parts[] = $part;
+    }
+
+    if (empty($normalized_parts)) {
+        return '';
+    }
+
+    return implode('/', $normalized_parts);
 }
 
 function ai_chatbot_normalize_footer_targets($value)
@@ -1063,6 +1089,17 @@ function ai_chatbot_show_settings_page($active_section = 'general')
     $section_keys = $section_map[$active_section] ?? $keys;
 
     if (_post('save')) {
+        $csrf_enabled = class_exists('Csrf') && ($config['csrf_enabled'] ?? 'yes') === 'yes';
+        if ($csrf_enabled) {
+            $csrf_token = _post('csrf_token');
+            if (!Csrf::check($csrf_token)) {
+                _msglog('e', Lang::T('Invalid or Expired CSRF Token'));
+                Csrf::generateAndStoreToken();
+                r2(getUrl('plugin/ai_chatbot_settings/' . $active_section));
+            }
+            Csrf::generateAndStoreToken();
+        }
+
         $post_data = $_POST;
 
         if ($active_section === 'general') {
@@ -1124,6 +1161,9 @@ function ai_chatbot_show_settings_page($active_section = 'general')
     $footer_options = array_values($footer_options);
 
     $ui->assign('config', $current_config);
+    if (class_exists('Csrf') && ($config['csrf_enabled'] ?? 'yes') === 'yes') {
+        $ui->assign('csrf_token', Csrf::generateAndStoreToken());
+    }
     $ui->assign('chatbot_defaults', ai_chatbot_defaults());
     $ui->assign('chatbot_footer_options', $footer_options);
     $ui->assign('chatbot_footer_selected', $footer_selected);
@@ -1498,7 +1538,5 @@ function ai_chatbot_run_proxy()
 
     ai_chatbot_json_response($decoded);
 }
-
-
 
 
