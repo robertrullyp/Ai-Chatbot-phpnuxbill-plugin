@@ -1,38 +1,181 @@
-﻿{include file="admin/header.tpl"}
+{include file="admin/header.tpl"}
 
 {assign var=is_enabled value=($config.chatbot_enabled eq '1')}
 
 {literal}
 <style>
-    .chatbot-settings-wrapper { position: relative; }
-    .chatbot-summary { background: linear-gradient(135deg, #f0f4ff 0%, #ffffff 100%); border: 1px solid rgba(99,102,241,.15); border-radius: 14px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(15,23,42,.05); }
-    .chatbot-summary__top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: center; }
-    .chatbot-summary__label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; display: block; margin-bottom: 6px; font-weight: 600; }
-    .chatbot-summary__endpoint code { display: inline-block; padding: 4px 8px; border-radius: 8px; background: rgba(15,23,42,.06); color: #0f172a; }
-    .chatbot-summary__description { margin: 12px 0 0; color: #475569; font-size: 13px; line-height: 1.6; max-width: 720px; }
-    .chatbot-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-weight: 600; font-size: 12px; }
-    .chatbot-status--on { background: rgba(34,197,94,.12); color: #15803d; }
-    .chatbot-status--off { background: rgba(248,113,113,.12); color: #e11d48; }
+    .chatbot-panel {
+        --chatbot-accent: #2563eb;
+        --chatbot-accent-soft: rgba(37, 99, 235, 0.12);
+        --chatbot-surface: #ffffff;
+        --chatbot-surface-muted: #f8fafc;
+        --chatbot-border: rgba(148, 163, 184, 0.35);
+        --chatbot-border-strong: rgba(148, 163, 184, 0.6);
+        --chatbot-text: #0f172a;
+        --chatbot-muted: #64748b;
+        --chatbot-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+    }
 
-    .chatbot-card { background: #ffffff; border-radius: 12px; border: 1px solid rgba(100,116,139,.18); padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 12px 30px rgba(15,23,42,.04); }
-    .chatbot-card__title { font-size: 16px; font-weight: 600; color: #111827; margin-bottom: 6px; }
+    .chatbot-settings-wrapper { position: relative; }
+    .chatbot-summary {
+        background: linear-gradient(135deg, var(--chatbot-accent-soft) 0%, #ffffff 60%);
+        border: 1px solid var(--chatbot-border);
+        border-radius: 16px;
+        padding: 22px 26px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        animation: chatbot-rise 220ms ease-out both;
+    }
+    .chatbot-summary__top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: center; }
+    .chatbot-summary__label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--chatbot-muted);
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 700;
+    }
+    .chatbot-summary__endpoint code {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.06);
+        color: var(--chatbot-text);
+        word-break: break-all;
+    }
+    .chatbot-summary__description { margin: 12px 0 0; color: #475569; font-size: 13px; line-height: 1.6; max-width: 720px; }
+    .chatbot-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 12px;
+    }
+    .chatbot-status::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: currentColor; display: inline-block; }
+    .chatbot-status--on { background: rgba(16, 185, 129, 0.12); color: #0f766e; }
+    .chatbot-status--off { background: rgba(244, 63, 94, 0.12); color: #be123c; }
+
+    .chatbot-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        border: 1px solid var(--chatbot-border);
+        border-radius: 12px;
+        padding: 6px;
+        background: var(--chatbot-surface-muted);
+        margin-bottom: 18px;
+    }
+    .chatbot-tabs > li { float: none; margin: 0; }
+    .chatbot-tabs .nav-link,
+    .chatbot-tabs > li > a {
+        border-radius: 10px;
+        padding: 8px 14px;
+        border: 1px solid transparent;
+        color: var(--chatbot-muted);
+        font-weight: 600;
+        transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    }
+    .chatbot-tabs .nav-link:hover,
+    .chatbot-tabs > li > a:hover {
+        color: var(--chatbot-text);
+        background: #ffffff;
+        border-color: var(--chatbot-border);
+    }
+    .chatbot-tabs .nav-link.active,
+    .chatbot-tabs > li.active > a {
+        color: #ffffff;
+        background: var(--chatbot-accent);
+        border-color: var(--chatbot-accent);
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+    }
+
+    .chatbot-card {
+        background: var(--chatbot-surface);
+        border-radius: 14px;
+        border: 1px solid var(--chatbot-border);
+        padding: 20px 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+        transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+        animation: chatbot-rise 220ms ease-out both;
+    }
+    .chatbot-card:hover { transform: translateY(-2px); box-shadow: var(--chatbot-shadow); border-color: rgba(37, 99, 235, 0.3); }
+    .chatbot-card__title { font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 6px; }
     .chatbot-card__subtitle { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
 
-    .chatbot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
-    .chatbot-grid textarea.form-control { min-height: 120px; }
-    .chatbot-helper { font-size: 12px; color: #64748b; margin-top: 6px; display: block; line-height: 1.4; }
+    .chatbot-card .form-group { margin-bottom: 16px; }
+    .chatbot-card .form-group:last-child { margin-bottom: 0; }
+    .chatbot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 22px; align-items: start; }
+    .chatbot-grid .form-group { margin: 0; }
+    .chatbot-grid textarea.form-control { min-height: 120px; resize: vertical; }
+    .chatbot-card label { font-weight: 600; color: #0f172a; }
+    .chatbot-helper { font-size: 12px; color: var(--chatbot-muted); margin-top: 6px; display: block; line-height: 1.5; }
     .chatbot-multi { min-height: 220px; }
 
-    .chatbot-auth-block { display: none; border-top: 1px dashed rgba(148,163,184,.5); padding-top: 18px; margin-top: 18px; }
-    .chatbot-auth-block.is-active { display: block; }
-    .chatbot-auth-title { font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 12px; }
+    .chatbot-auth-block {
+        display: none;
+        border: 1px dashed var(--chatbot-border-strong);
+        background: var(--chatbot-surface-muted);
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 18px;
+    }
+    .chatbot-auth-block.is-active {
+        display: block;
+        animation: chatbot-fade-in 180ms ease-out both;
+    }
+    .chatbot-auth-title { font-size: 12px; font-weight: 700; color: var(--chatbot-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
 
-    .chatbot-form-actions { display: flex; justify-content: flex-end; align-items: center; margin-top: 12px; }
+    .chatbot-form-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--chatbot-border);
+    }
+    .chatbot-form-actions .btn { border-radius: 10px; padding: 10px 18px; min-width: 160px; }
+
+    .chatbot-panel .form-control {
+        border-radius: 10px;
+        border-color: var(--chatbot-border);
+        box-shadow: none;
+        transition: border-color 160ms ease, box-shadow 160ms ease;
+    }
+    .chatbot-panel .form-control:focus {
+        border-color: rgba(37, 99, 235, 0.6);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    .chatbot-panel .mt-4 { margin-top: 20px; }
+
+    @keyframes chatbot-rise {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes chatbot-fade-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
     @media (max-width: 640px) {
         .chatbot-summary { padding: 16px; }
         .chatbot-card { padding: 16px; }
         .chatbot-grid { gap: 12px; }
+        .chatbot-tabs { padding: 4px; }
+        .chatbot-form-actions { justify-content: center; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .chatbot-summary,
+        .chatbot-card,
+        .chatbot-auth-block.is-active { animation: none; }
+        .chatbot-card,
+        .chatbot-tabs .nav-link,
+        .chatbot-tabs > li > a,
+        .chatbot-panel .form-control { transition: none; }
     }
 </style>
 {/literal}
@@ -68,13 +211,16 @@
                         </p>
                     </div>
 
-                    <ul class="nav nav-tabs" role="tablist">
+                    <ul class="nav nav-tabs chatbot-tabs" role="tablist">
                         {foreach $chatbot_sections as $key => $anchor}
-                            <li class="nav-item"><a class="nav-link {if $key eq $chatbot_active_section}active{/if}" href="{getUrl('plugin/ai_chatbot_settings/')}{$key}">{$key|replace:'-':' '|ucwords}</a></li>
+                            <li class="nav-item {if $key eq $chatbot_active_section}active{/if}"><a class="nav-link {if $key eq $chatbot_active_section}active{/if}" href="{getUrl('plugin/ai_chatbot_settings/')}{$key}">{$key|replace:'-':' '|ucwords}</a></li>
                         {/foreach}
                     </ul>
 
                     <form method="post" action="{getUrl('plugin/ai_chatbot_settings/')}{$chatbot_active_section}" class="mt-4">
+                        {if isset($csrf_token)}
+                            <input type="hidden" name="csrf_token" value="{$csrf_token}">
+                        {/if}
                         <div class="tab-content">
                             <div class="tab-pane active" id="{$chatbot_active_anchor}">
 
@@ -101,6 +247,90 @@
                                                 <input type="number" min="5" max="600" id="chatbot_request_timeout" name="chatbot_request_timeout" class="form-control" value="{$config.chatbot_request_timeout|escape}">
                                                 <span class="chatbot-helper">Berapa lama sistem menunggu respons sebelum menampilkan pesan gagal.</span>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Metode Autentikasi</h3>
+                                        <p class="chatbot-card__subtitle">Pilih mekanisme autentikasi yang diperlukan oleh endpoint AI Anda.</p>
+                                        <div class="chatbot-grid">
+                                            <div class="form-group">
+                                                <label for="chatbot_auth_type">Authentication Type</label>
+                                                <select id="chatbot_auth_type" name="chatbot_auth_type" class="form-control">
+                                                    <option value="none" {if $config.chatbot_auth_type == 'none'}selected{/if}>None</option>
+                                                    <option value="header" {if $config.chatbot_auth_type == 'header'}selected{/if}>Custom Header</option>
+                                                    <option value="basic" {if $config.chatbot_auth_type == 'basic'}selected{/if}>Basic Auth</option>
+                                                    <option value="jwt" {if $config.chatbot_auth_type == 'jwt'}selected{/if}>JWT (HMAC)</option>
+                                                </select>
+                                                <span class="chatbot-helper">Gunakan <em>Custom Header</em> untuk API key sederhana, atau JWT untuk token dinamis.</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="chatbot-auth-block js-auth-block" data-auth-mode="header">
+                                            <div class="chatbot-auth-title">Custom Header</div>
+                                            <div class="chatbot-grid">
+                                                <div class="form-group">
+                                                    <label for="chatbot_header_key">Header Name</label>
+                                                    <input type="text" id="chatbot_header_key" name="chatbot_header_key" class="form-control" value="{$config.chatbot_header_key|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_header_value">Header Value</label>
+                                                    <input type="text" id="chatbot_header_value" name="chatbot_header_value" class="form-control" value="{$config.chatbot_header_value|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_as_bearer">Format Value</label>
+                                                    <select id="chatbot_as_bearer" name="chatbot_as_bearer" class="form-control">
+                                                        <option value="no" {if $config.chatbot_as_bearer == 'no'}selected{/if}>Gunakan apa adanya</option>
+                                                        <option value="yes" {if $config.chatbot_as_bearer == 'yes'}selected{/if}>Prefix dengan Bearer</option>
+                                                    </select>
+                                                    <span class="chatbot-helper">Jika memilih Bearer, nilai akan dikirim sebagai <code>Authorization: Bearer &lt;value&gt;</code>.</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="chatbot-auth-block js-auth-block" data-auth-mode="basic">
+                                            <div class="chatbot-auth-title">Basic Authentication</div>
+                                            <div class="chatbot-grid">
+                                                <div class="form-group">
+                                                    <label for="chatbot_basic_user">Username</label>
+                                                    <input type="text" id="chatbot_basic_user" name="chatbot_basic_user" class="form-control" value="{$config.chatbot_basic_user|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_basic_pass">Password</label>
+                                                    <input type="password" id="chatbot_basic_pass" name="chatbot_basic_pass" class="form-control" value="{$config.chatbot_basic_pass|escape}">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="chatbot-auth-block js-auth-block" data-auth-mode="jwt">
+                                            <div class="chatbot-auth-title">JWT (HS256)</div>
+                                            <div class="chatbot-grid">
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_token">Token ID / Subject</label>
+                                                    <input type="text" id="chatbot_jwt_token" name="chatbot_jwt_token" class="form-control" value="{$config.chatbot_jwt_token|escape}" placeholder="token-id">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_secret">Shared Secret</label>
+                                                    <input type="password" id="chatbot_jwt_secret" name="chatbot_jwt_secret" class="form-control" value="{$config.chatbot_jwt_secret|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_iss">Issuer (iss)</label>
+                                                    <input type="text" id="chatbot_jwt_iss" name="chatbot_jwt_iss" class="form-control" value="{$config.chatbot_jwt_iss|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_aud">Audience (aud)</label>
+                                                    <input type="text" id="chatbot_jwt_aud" name="chatbot_jwt_aud" class="form-control" value="{$config.chatbot_jwt_aud|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_sub">Subject (sub)</label>
+                                                    <input type="text" id="chatbot_jwt_sub" name="chatbot_jwt_sub" class="form-control" value="{$config.chatbot_jwt_sub|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_ttl">TTL (detik)</label>
+                                                    <input type="number" min="60" max="3600" id="chatbot_jwt_ttl" name="chatbot_jwt_ttl" class="form-control" value="{$config.chatbot_jwt_ttl|escape}">
+                                                </div>
+                                            </div>
+                                            <span class="chatbot-helper">Plugin akan menghasilkan token JWT HS256 baru setiap kali percakapan dikirim.</span>
                                         </div>
                                     </div>
 
@@ -227,92 +457,6 @@
                                                 <label for="chatbot_history_max_messages">History Max Messages</label>
                                                 <input type="number" min="1" id="chatbot_history_max_messages" name="chatbot_history_max_messages" class="form-control" value="{$config.chatbot_history_max_messages|escape}">
                                             </div>
-                                        </div>
-                                    </div>
-                                {/if}
-
-                                {if $chatbot_active_section eq 'authentication'}
-                                    <div class="chatbot-card">
-                                        <h3 class="chatbot-card__title">Metode Autentikasi</h3>
-                                        <p class="chatbot-card__subtitle">Pilih mekanisme autentikasi yang diperlukan oleh endpoint AI Anda.</p>
-                                        <div class="chatbot-grid">
-                                            <div class="form-group">
-                                                <label for="chatbot_auth_type">Authentication Type</label>
-                                                <select id="chatbot_auth_type" name="chatbot_auth_type" class="form-control">
-                                                    <option value="none" {if $config.chatbot_auth_type == 'none'}selected{/if}>None</option>
-                                                    <option value="header" {if $config.chatbot_auth_type == 'header'}selected{/if}>Custom Header</option>
-                                                    <option value="basic" {if $config.chatbot_auth_type == 'basic'}selected{/if}>Basic Auth</option>
-                                                    <option value="jwt" {if $config.chatbot_auth_type == 'jwt'}selected{/if}>JWT (HMAC)</option>
-                                                </select>
-                                                <span class="chatbot-helper">Gunakan <em>Custom Header</em> untuk API key sederhana, atau JWT untuk token dinamis.</span>
-                                            </div>
-                                        </div>
-
-                                        <div class="chatbot-auth-block js-auth-block" data-auth-mode="header">
-                                            <div class="chatbot-auth-title">Custom Header</div>
-                                            <div class="chatbot-grid">
-                                                <div class="form-group">
-                                                    <label for="chatbot_header_key">Header Name</label>
-                                                    <input type="text" id="chatbot_header_key" name="chatbot_header_key" class="form-control" value="{$config.chatbot_header_key|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_header_value">Header Value</label>
-                                                    <input type="text" id="chatbot_header_value" name="chatbot_header_value" class="form-control" value="{$config.chatbot_header_value|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_as_bearer">Format Value</label>
-                                                    <select id="chatbot_as_bearer" name="chatbot_as_bearer" class="form-control">
-                                                        <option value="no" {if $config.chatbot_as_bearer == 'no'}selected{/if}>Gunakan apa adanya</option>
-                                                        <option value="yes" {if $config.chatbot_as_bearer == 'yes'}selected{/if}>Prefix dengan Bearer</option>
-                                                    </select>
-                                                    <span class="chatbot-helper">Jika memilih Bearer, nilai akan dikirim sebagai <code>Authorization: Bearer &lt;value&gt;</code>.</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="chatbot-auth-block js-auth-block" data-auth-mode="basic">
-                                            <div class="chatbot-auth-title">Basic Authentication</div>
-                                            <div class="chatbot-grid">
-                                                <div class="form-group">
-                                                    <label for="chatbot_basic_user">Username</label>
-                                                    <input type="text" id="chatbot_basic_user" name="chatbot_basic_user" class="form-control" value="{$config.chatbot_basic_user|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_basic_pass">Password</label>
-                                                    <input type="password" id="chatbot_basic_pass" name="chatbot_basic_pass" class="form-control" value="{$config.chatbot_basic_pass|escape}">
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="chatbot-auth-block js-auth-block" data-auth-mode="jwt">
-                                            <div class="chatbot-auth-title">JWT (HS256)</div>
-                                            <div class="chatbot-grid">
-                                                <div class="form-group">
-                                                    <label for="chatbot_jwt_token">Token ID / Subject</label>
-                                                    <input type="text" id="chatbot_jwt_token" name="chatbot_jwt_token" class="form-control" value="{$config.chatbot_jwt_token|escape}" placeholder="token-id">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_jwt_secret">Shared Secret</label>
-                                                    <input type="password" id="chatbot_jwt_secret" name="chatbot_jwt_secret" class="form-control" value="{$config.chatbot_jwt_secret|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_jwt_iss">Issuer (iss)</label>
-                                                    <input type="text" id="chatbot_jwt_iss" name="chatbot_jwt_iss" class="form-control" value="{$config.chatbot_jwt_iss|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_jwt_aud">Audience (aud)</label>
-                                                    <input type="text" id="chatbot_jwt_aud" name="chatbot_jwt_aud" class="form-control" value="{$config.chatbot_jwt_aud|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_jwt_sub">Subject (sub)</label>
-                                                    <input type="text" id="chatbot_jwt_sub" name="chatbot_jwt_sub" class="form-control" value="{$config.chatbot_jwt_sub|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_jwt_ttl">TTL (detik)</label>
-                                                    <input type="number" min="60" max="3600" id="chatbot_jwt_ttl" name="chatbot_jwt_ttl" class="form-control" value="{$config.chatbot_jwt_ttl|escape}">
-                                                </div>
-                                            </div>
-                                            <span class="chatbot-helper">Plugin akan menghasilkan token JWT HS256 baru setiap kali percakapan dikirim.</span>
                                         </div>
                                     </div>
                                 {/if}
