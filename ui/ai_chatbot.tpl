@@ -1,4 +1,4 @@
-﻿{* Smarty *}
+{* Smarty *}
 {assign var=chatbot value=$_c}
 {assign var=chatbot_title value=$chatbot.chatbot_title|default:'AI Chat'}
 {assign var=button_label value=$chatbot.chatbot_button_label|trim}
@@ -9,6 +9,7 @@
 {assign var=button_side value=$chatbot.chatbot_button_side|default:'right'}
 {assign var=frame_width value=$chatbot.chatbot_frame_width|default:340|intval}
 {assign var=frame_height value=$chatbot.chatbot_frame_height|default:460|intval}
+{assign var=frame_mode value=$chatbot.chatbot_frame_mode|default:'fixed'}
 {assign var=chatbot_enabled value=$chatbot.chatbot_enabled|default:'0'}
 
 <style>
@@ -92,6 +93,11 @@
         border-radius: var(--chatbot-radius);
         box-shadow: var(--chatbot-shadow);
         overflow: hidden;
+    }
+
+    .ai-chatbot-frame[data-frame-mode="auto"] {
+        height: auto;
+        max-height: 80vh;
     }
 
     .ai-chatbot-frame.is-open {
@@ -303,7 +309,7 @@
         </span>
         <span class="ai-chatbot-button-text">{$button_label|escape}</span>
     </button>
-    <div id="ai-chatbot-frame" class="ai-chatbot-frame" role="dialog" aria-modal="false" aria-hidden="true" aria-label="{$chatbot_title|escape}">
+    <div id="ai-chatbot-frame" class="ai-chatbot-frame" data-frame-mode="{$frame_mode|escape}" role="dialog" aria-modal="false" aria-hidden="true" aria-label="{$chatbot_title|escape}">
         <div class="chatbot-header">
             <div class="chatbot-header__title">
                 {if $chatbot.chatbot_avatar_url|trim ne ''}
@@ -364,6 +370,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const historyMaxRaw = parseInt("{$chatbot.chatbot_history_max_messages|default:50|escape:'javascript'}", 10);
     const welcomeEnabledRaw = "{$chatbot.chatbot_welcome_enabled|default:'0'|escape:'javascript'}";
     const welcomeMessage = "{$chatbot.chatbot_welcome_message|default:'Hello! How can I help you today?'|escape:'javascript'}";
+    const typingModeRaw = "{$chatbot.chatbot_typing_mode|default:'off'|escape:'javascript'}";
+    const typingWpmRaw = parseInt("{$chatbot.chatbot_typing_wpm|default:300|escape:'javascript'}", 10);
+    const frameModeRaw = "{$chatbot.chatbot_frame_mode|default:'fixed'|escape:'javascript'}";
 
     const settings = {
         history_mode: historyModeRaw === 'count' ? 'count' : 'ttl',
@@ -372,6 +381,14 @@ document.addEventListener('DOMContentLoaded', () => {
         welcome_enabled: welcomeEnabledRaw === '1',
         welcome_message: welcomeMessage
     };
+
+    const typingMode = typingModeRaw === 'wpm' ? 'wpm' : 'off';
+    const typingWpm = !isNaN(typingWpmRaw) && typingWpmRaw > 0 ? typingWpmRaw : 300;
+    const frameMode = frameModeRaw === 'auto' ? 'auto' : 'fixed';
+
+    if (chatFrame) {
+        chatFrame.dataset.frameMode = frameMode;
+    }
 
     function uuidv4() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -520,7 +537,34 @@ document.addEventListener('DOMContentLoaded', () => {
         messageDiv.appendChild(contentDiv);
         messagesContainer.appendChild(messageDiv);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        updateAutoHeight();
         return messageDiv;
+    }
+
+    function updateAutoHeight() {
+        if (frameMode !== 'auto' || !chatFrame) {
+            return;
+        }
+
+        chatFrame.style.height = 'auto';
+        const maxHeight = Math.floor(window.innerHeight * 0.8);
+        const nextHeight = Math.min(chatFrame.scrollHeight, maxHeight);
+        chatFrame.style.height = nextHeight + 'px';
+    }
+
+    function typingDelayForText(text) {
+        if (typingMode !== 'wpm') {
+            return 0;
+        }
+
+        const content = (text || '').trim();
+        if (content === '') {
+            return 0;
+        }
+
+        const msPerChar = 60000 / (typingWpm * 5);
+        const estimated = Math.round(content.length * msPerChar);
+        return Math.min(8000, Math.max(300, estimated));
     }
 
     function setChatOpen(open) {
@@ -540,6 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             requestAnimationFrame(() => {
+                updateAutoHeight();
                 input.focus();
             });
         } else {
@@ -655,7 +700,7 @@ document.addEventListener('DOMContentLoaded', () => {
         input.disabled = true;
         sendButton.disabled = true;
 
-        const typingIndicator = addMessage('bot', '', true);
+        const typingIndicator = typingMode === 'wpm' ? addMessage('bot', '', true) : null;
 
         try {
             const requestPayload = {
@@ -701,10 +746,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 data = null;
             }
 
-            if (typingIndicator && typingIndicator.parentNode) {
-                typingIndicator.remove();
-            }
-
             if (data && typeof data === 'object' && data !== null && data.csrf_token) {
                 csrfToken = data.csrf_token;
                 delete data.csrf_token;
@@ -715,6 +756,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data && data.proxy_id) {
                     chatConfig.proxy_id = data.proxy_id;
                 }
+                if (typingIndicator && typingIndicator.parentNode) {
+                    typingIndicator.remove();
+                }
                 addMessage('bot', 'Error: ' + errorMessage);
                 return;
             }
@@ -722,6 +766,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const botResponse = extractBotMessage(data);
             const finalText = (typeof botResponse === 'string' ? botResponse : '')
                 .trim() || 'Maaf, saya tidak dapat memproses permintaan tersebut.';
+
+            if (typingIndicator && typingIndicator.parentNode) {
+                const delay = typingDelayForText(finalText);
+                if (delay > 0) {
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                }
+                typingIndicator.remove();
+            }
 
             addMessage('bot', finalText);
             history.push({ sender: 'bot', text: finalText });
@@ -773,10 +825,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('keydown', handleKeydown);
+    window.addEventListener('resize', updateAutoHeight);
 
     window.addEventListener('unload', () => {
         document.removeEventListener('click', handleDocumentClick);
         document.removeEventListener('keydown', handleKeydown);
+        window.removeEventListener('resize', updateAutoHeight);
     });
 
     loadHistory();
