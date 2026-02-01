@@ -10,8 +10,16 @@ function ai_chatbot_settings()
     global $routes;
 
     $sub_route = $routes[2] ?? 'general';
+    if ($sub_route === 'conversation-history') {
+        $sub_route = 'chat-experience';
+    }
     if ($sub_route === 'bootstrap') {
         ai_chatbot_bootstrap();
+        return;
+    }
+
+    if ($sub_route === 'status') {
+        ai_chatbot_status();
         return;
     }
 
@@ -38,6 +46,8 @@ function ai_chatbot_defaults()
     return [
         'chatbot_enabled' => '0',
         'chatbot_endpoint' => '',
+        'chatbot_admin_endpoint_enabled' => '0',
+        'chatbot_endpoint_admin' => '',
         'chatbot_title' => 'AI Chat',
         'chatbot_button_label' => '',
         'chatbot_button_side' => 'right',
@@ -54,19 +64,82 @@ function ai_chatbot_defaults()
         'chatbot_jwt_aud' => '',
         'chatbot_jwt_sub' => '',
         'chatbot_jwt_ttl' => '300',
+        'chatbot_admin_auth_type' => 'none',
+        'chatbot_admin_basic_user' => '',
+        'chatbot_admin_basic_pass' => '',
+        'chatbot_admin_header_key' => 'X-API-Key',
+        'chatbot_admin_header_value' => '',
+        'chatbot_admin_as_bearer' => 'no',
+        'chatbot_admin_jwt_token' => '',
+        'chatbot_admin_jwt_secret' => '',
+        'chatbot_admin_jwt_iss' => '',
+        'chatbot_admin_jwt_aud' => '',
+        'chatbot_admin_jwt_sub' => '',
+        'chatbot_admin_jwt_ttl' => '300',
         'chatbot_history_mode' => 'ttl',
         'chatbot_history_ttl' => '360',
         'chatbot_history_max_messages' => '50',
         'chatbot_request_timeout' => '30',
+        'chatbot_status_throttle' => '30',
+        'chatbot_response_key' => 'output',
+        'chatbot_system_prompt' => '',
+        'chatbot_temperature' => '0.7',
+        'chatbot_max_tokens' => '512',
+        'chatbot_meta_scope' => '',
+        'chatbot_meta_entity_id' => '',
+        'chatbot_meta_owner_id' => '',
+        'chatbot_admin_response_key' => '',
+        'chatbot_admin_system_prompt' => '',
+        'chatbot_admin_temperature' => '0.7',
+        'chatbot_admin_max_tokens' => '512',
+        'chatbot_admin_meta_scope' => '',
+        'chatbot_admin_meta_entity_id' => '',
+        'chatbot_admin_meta_owner_id' => '',
+        'chatbot_message_format' => 'markdown',
         'chatbot_typing_mode' => 'off',
         'chatbot_typing_wpm' => '600',
         'chatbot_user_input_max_chars' => '1000',
+        'chatbot_handoff_enabled' => '0',
+        'chatbot_handoff_label' => 'Chat dengan Admin',
+        'chatbot_handoff_timeout' => '600',
+        'chatbot_handoff_reason' => 'chat_dengan_admin',
+        'chatbot_handoff_notice' => 'Permintaan terkirim. Admin akan segera bergabung.',
         'chatbot_frame_mode' => 'fixed',
         'chatbot_frame_width' => '340',
         'chatbot_frame_height' => '460',
         'chatbot_welcome_enabled' => '0',
         'chatbot_welcome_message' => '',
-        'chatbot_footer_targets' => 'ui/ui/customer/footer.tpl,ui/ui/customer/footer-public.tpl,ui/ui/admin/footer.tpl',
+        'chatbot_theme_preset' => 'custom',
+        'chatbot_header_bg' => '',
+        'chatbot_header_text' => '',
+        'chatbot_launcher_bg' => '',
+        'chatbot_launcher_text' => '',
+        'chatbot_send_bg' => '',
+        'chatbot_send_text' => '',
+        'chatbot_frame_bg' => '',
+        'chatbot_messages_bg' => '',
+        'chatbot_input_bg' => '',
+        'chatbot_input_text' => '',
+        'chatbot_input_border' => '',
+        'chatbot_input_area_bg' => '',
+        'chatbot_input_area_padding_x' => '14',
+        'chatbot_input_area_padding_y' => '12',
+        'chatbot_input_area_blur' => '8',
+        'chatbot_bubble_radius' => '14',
+        'chatbot_bubble_padding_x' => '14',
+        'chatbot_bubble_padding_y' => '10',
+        'chatbot_bubble_font_size' => '14',
+        'chatbot_bubble_line_height' => '1.45',
+        'chatbot_bubble_max_width' => '80',
+        'chatbot_bubble_bot_bg' => '',
+        'chatbot_bubble_bot_text' => '',
+        'chatbot_bubble_bot_border' => '',
+        'chatbot_bubble_user_bg' => '',
+        'chatbot_bubble_user_text' => '',
+        'chatbot_bubble_user_border' => '',
+        'chatbot_message_font_family' => '',
+        'chatbot_footer_targets' => 'ui/ui/customer/footer.tpl,ui/ui/customer/footer-public.tpl',
+        'chatbot_footer_targets_admin' => 'ui/ui/admin/footer.tpl',
     ];
 }
 
@@ -80,7 +153,7 @@ function ai_chatbot_sections()
     return [
         'general' => 'general-settings',
         'chat-experience' => 'experience-settings',
-        'conversation-history' => 'history-settings',
+        'styling' => 'styling-settings',
     ];
 }
 
@@ -91,8 +164,38 @@ function ai_chatbot_section_field_map()
         'general' => [
             'chatbot_enabled',
             'chatbot_endpoint',
+            'chatbot_admin_endpoint_enabled',
+            'chatbot_endpoint_admin',
+            'chatbot_admin_auth_type',
+            'chatbot_admin_header_key',
+            'chatbot_admin_header_value',
+            'chatbot_admin_as_bearer',
+            'chatbot_admin_basic_user',
+            'chatbot_admin_basic_pass',
+            'chatbot_admin_jwt_token',
+            'chatbot_admin_jwt_secret',
+            'chatbot_admin_jwt_iss',
+            'chatbot_admin_jwt_aud',
+            'chatbot_admin_jwt_sub',
+            'chatbot_admin_jwt_ttl',
             'chatbot_footer_targets',
+            'chatbot_footer_targets_admin',
             'chatbot_request_timeout',
+            'chatbot_status_throttle',
+            'chatbot_response_key',
+            'chatbot_system_prompt',
+            'chatbot_temperature',
+            'chatbot_max_tokens',
+            'chatbot_meta_scope',
+            'chatbot_meta_entity_id',
+            'chatbot_meta_owner_id',
+            'chatbot_admin_response_key',
+            'chatbot_admin_system_prompt',
+            'chatbot_admin_temperature',
+            'chatbot_admin_max_tokens',
+            'chatbot_admin_meta_scope',
+            'chatbot_admin_meta_entity_id',
+            'chatbot_admin_meta_owner_id',
             'chatbot_auth_type',
             'chatbot_header_key',
             'chatbot_header_value',
@@ -113,17 +216,52 @@ function ai_chatbot_section_field_map()
             'chatbot_avatar_url',
             'chatbot_welcome_enabled',
             'chatbot_welcome_message',
+            'chatbot_message_format',
             'chatbot_typing_mode',
             'chatbot_typing_wpm',
             'chatbot_user_input_max_chars',
+            'chatbot_handoff_enabled',
+            'chatbot_handoff_label',
+            'chatbot_handoff_timeout',
+            'chatbot_handoff_reason',
+            'chatbot_handoff_notice',
             'chatbot_frame_mode',
             'chatbot_frame_width',
             'chatbot_frame_height',
-        ],
-        'conversation-history' => [
             'chatbot_history_mode',
             'chatbot_history_ttl',
             'chatbot_history_max_messages',
+        ],
+        'styling' => [
+            'chatbot_theme_preset',
+            'chatbot_header_bg',
+            'chatbot_header_text',
+            'chatbot_launcher_bg',
+            'chatbot_launcher_text',
+            'chatbot_send_bg',
+            'chatbot_send_text',
+            'chatbot_frame_bg',
+            'chatbot_messages_bg',
+            'chatbot_input_bg',
+            'chatbot_input_text',
+            'chatbot_input_border',
+            'chatbot_input_area_bg',
+            'chatbot_input_area_padding_x',
+            'chatbot_input_area_padding_y',
+            'chatbot_input_area_blur',
+            'chatbot_bubble_radius',
+            'chatbot_bubble_padding_x',
+            'chatbot_bubble_padding_y',
+            'chatbot_bubble_font_size',
+            'chatbot_bubble_line_height',
+            'chatbot_bubble_max_width',
+            'chatbot_bubble_bot_bg',
+            'chatbot_bubble_bot_text',
+            'chatbot_bubble_bot_border',
+            'chatbot_bubble_user_bg',
+            'chatbot_bubble_user_text',
+            'chatbot_bubble_user_border',
+            'chatbot_message_font_family',
         ],
     ];
 }
@@ -331,6 +469,25 @@ function ai_chatbot_footer_options()
     }
 
     return $options;
+}
+
+function ai_chatbot_group_footer_options(array $options)
+{
+    $grouped = [
+        'public' => [],
+        'admin' => [],
+    ];
+
+    foreach ($options as $option) {
+        $path = isset($option['path']) ? (string) $option['path'] : '';
+        if (strpos($path, '/admin/') !== false) {
+            $grouped['admin'][] = $option;
+        } else {
+            $grouped['public'][] = $option;
+        }
+    }
+
+    return $grouped;
 }
 
 function ai_chatbot_snippet_body()
@@ -724,7 +881,9 @@ if (!defined('AI_CHATBOT_AUTOSYNC_REGISTERED')) {
         }
 
         $settings = ai_chatbot_load_config();
-        $targets = ai_chatbot_parse_footer_targets($settings['chatbot_footer_targets'] ?? '');
+        $public_targets = ai_chatbot_parse_footer_targets($settings['chatbot_footer_targets'] ?? '');
+        $admin_targets = ai_chatbot_parse_footer_targets($settings['chatbot_footer_targets_admin'] ?? '');
+        $targets = array_values(array_unique(array_merge($public_targets, $admin_targets)));
         ai_chatbot_sync_footer_includes(($settings['chatbot_enabled'] ?? '0') === '1', $targets);
     });
 }
@@ -777,32 +936,85 @@ function ai_chatbot_lookup_proxy_entry($proxy_id)
     return $_SESSION['ai_chatbot_proxies'][$proxy_id];
 }
 
+function ai_chatbot_detect_context($requested = '')
+{
+    $requested = strtolower(trim((string) $requested));
+    $is_admin = Admin::getID() ? true : false;
+    $is_user = User::getID() ? true : false;
+
+    if ($requested === 'admin') {
+        return $is_admin ? 'admin' : ($is_user ? 'customer' : 'public');
+    }
+
+    if ($requested === 'customer') {
+        return $is_user ? 'customer' : ($is_admin ? 'admin' : 'public');
+    }
+
+    if ($requested === 'public') {
+        return 'public';
+    }
+
+    if ($is_admin) {
+        return 'admin';
+    }
+
+    if ($is_user) {
+        return 'customer';
+    }
+
+    return 'public';
+}
+
+function ai_chatbot_resolve_endpoint(array $settings, $context = '')
+{
+    $context = $context !== '' ? $context : ai_chatbot_detect_context();
+    $default_endpoint = isset($settings['chatbot_endpoint']) ? trim((string) $settings['chatbot_endpoint']) : '';
+
+    $admin_enabled = ($settings['chatbot_admin_endpoint_enabled'] ?? '0') === '1';
+    if ($context === 'admin' && $admin_enabled) {
+        $admin_endpoint = isset($settings['chatbot_endpoint_admin']) ? trim((string) $settings['chatbot_endpoint_admin']) : '';
+        if ($admin_endpoint !== '') {
+            return $admin_endpoint;
+        }
+    }
+
+    return $default_endpoint;
+}
+
 function ai_chatbot_collect_proxy_config(array $settings)
 {
-    $endpoint = isset($settings['chatbot_endpoint']) ? (string) $settings['chatbot_endpoint'] : '';
-    $auth_type = isset($settings['chatbot_auth_type']) ? strtolower((string) $settings['chatbot_auth_type']) : 'none';
+    $context = ai_chatbot_detect_context(_req('context'));
+    $use_admin = $context === 'admin' && (($settings['chatbot_admin_endpoint_enabled'] ?? '0') === '1');
+    $endpoint = ai_chatbot_resolve_endpoint($settings, $context);
+    $auth_type = $use_admin
+        ? (isset($settings['chatbot_admin_auth_type']) ? strtolower((string) $settings['chatbot_admin_auth_type']) : 'none')
+        : (isset($settings['chatbot_auth_type']) ? strtolower((string) $settings['chatbot_auth_type']) : 'none');
 
     $auth = ['type' => in_array($auth_type, ['basic', 'header', 'jwt'], true) ? $auth_type : 'none'];
 
     switch ($auth['type']) {
         case 'basic':
-            $auth['basic_user'] = $settings['chatbot_basic_user'] ?? '';
-            $auth['basic_pass'] = $settings['chatbot_basic_pass'] ?? '';
+            $auth['basic_user'] = $use_admin ? ($settings['chatbot_admin_basic_user'] ?? '') : ($settings['chatbot_basic_user'] ?? '');
+            $auth['basic_pass'] = $use_admin ? ($settings['chatbot_admin_basic_pass'] ?? '') : ($settings['chatbot_basic_pass'] ?? '');
             break;
 
         case 'header':
-            $auth['header_key'] = $settings['chatbot_header_key'] ?? 'X-API-Key';
-            $auth['header_value'] = $settings['chatbot_header_value'] ?? '';
-            $auth['as_bearer'] = ($settings['chatbot_as_bearer'] ?? 'no') === 'yes';
+            $auth['header_key'] = $use_admin ? ($settings['chatbot_admin_header_key'] ?? 'X-API-Key') : ($settings['chatbot_header_key'] ?? 'X-API-Key');
+            $auth['header_value'] = $use_admin ? ($settings['chatbot_admin_header_value'] ?? '') : ($settings['chatbot_header_value'] ?? '');
+            $auth['as_bearer'] = $use_admin
+                ? (($settings['chatbot_admin_as_bearer'] ?? 'no') === 'yes')
+                : (($settings['chatbot_as_bearer'] ?? 'no') === 'yes');
             break;
 
         case 'jwt':
-            $auth['jwt_token'] = $settings['chatbot_jwt_token'] ?? '';
-            $auth['jwt_secret'] = $settings['chatbot_jwt_secret'] ?? '';
-            $auth['jwt_iss'] = $settings['chatbot_jwt_iss'] ?? '';
-            $auth['jwt_aud'] = $settings['chatbot_jwt_aud'] ?? '';
-            $auth['jwt_sub'] = $settings['chatbot_jwt_sub'] ?? '';
-            $auth['jwt_ttl'] = isset($settings['chatbot_jwt_ttl']) ? (int) $settings['chatbot_jwt_ttl'] : 300;
+            $auth['jwt_token'] = $use_admin ? ($settings['chatbot_admin_jwt_token'] ?? '') : ($settings['chatbot_jwt_token'] ?? '');
+            $auth['jwt_secret'] = $use_admin ? ($settings['chatbot_admin_jwt_secret'] ?? '') : ($settings['chatbot_jwt_secret'] ?? '');
+            $auth['jwt_iss'] = $use_admin ? ($settings['chatbot_admin_jwt_iss'] ?? '') : ($settings['chatbot_jwt_iss'] ?? '');
+            $auth['jwt_aud'] = $use_admin ? ($settings['chatbot_admin_jwt_aud'] ?? '') : ($settings['chatbot_jwt_aud'] ?? '');
+            $auth['jwt_sub'] = $use_admin ? ($settings['chatbot_admin_jwt_sub'] ?? '') : ($settings['chatbot_jwt_sub'] ?? '');
+            $auth['jwt_ttl'] = $use_admin
+                ? (isset($settings['chatbot_admin_jwt_ttl']) ? (int) $settings['chatbot_admin_jwt_ttl'] : 300)
+                : (isset($settings['chatbot_jwt_ttl']) ? (int) $settings['chatbot_jwt_ttl'] : 300);
             if ($auth['jwt_ttl'] <= 0) {
                 $auth['jwt_ttl'] = 300;
             }
@@ -811,11 +1023,36 @@ function ai_chatbot_collect_proxy_config(array $settings)
 
     return [
         'endpoint' => $endpoint,
+        'context' => $context,
+        'use_admin' => $use_admin,
         'auth' => $auth,
         'request_timeout' => (int) ai_chatbot_normalise_timeout($settings['chatbot_request_timeout'] ?? 30, 30),
         'user_input_max_chars' => isset($settings['chatbot_user_input_max_chars'])
             ? (int) $settings['chatbot_user_input_max_chars']
             : 1000,
+        'response_key' => isset($settings[$use_admin ? 'chatbot_admin_response_key' : 'chatbot_response_key'])
+            ? trim((string) $settings[$use_admin ? 'chatbot_admin_response_key' : 'chatbot_response_key'])
+            : '',
+        'system_prompt' => isset($settings[$use_admin ? 'chatbot_admin_system_prompt' : 'chatbot_system_prompt'])
+            ? (string) $settings[$use_admin ? 'chatbot_admin_system_prompt' : 'chatbot_system_prompt']
+            : '',
+        'temperature' => isset($settings[$use_admin ? 'chatbot_admin_temperature' : 'chatbot_temperature'])
+            ? (float) $settings[$use_admin ? 'chatbot_admin_temperature' : 'chatbot_temperature']
+            : 0.7,
+        'max_tokens' => isset($settings[$use_admin ? 'chatbot_admin_max_tokens' : 'chatbot_max_tokens'])
+            ? (int) $settings[$use_admin ? 'chatbot_admin_max_tokens' : 'chatbot_max_tokens']
+            : 512,
+        'meta_overrides' => [
+            'scope' => isset($settings[$use_admin ? 'chatbot_admin_meta_scope' : 'chatbot_meta_scope'])
+                ? trim((string) $settings[$use_admin ? 'chatbot_admin_meta_scope' : 'chatbot_meta_scope'])
+                : '',
+            'entity_id' => isset($settings[$use_admin ? 'chatbot_admin_meta_entity_id' : 'chatbot_meta_entity_id'])
+                ? trim((string) $settings[$use_admin ? 'chatbot_admin_meta_entity_id' : 'chatbot_meta_entity_id'])
+                : '',
+            'owner_id' => isset($settings[$use_admin ? 'chatbot_admin_meta_owner_id' : 'chatbot_meta_owner_id'])
+                ? trim((string) $settings[$use_admin ? 'chatbot_admin_meta_owner_id' : 'chatbot_meta_owner_id'])
+                : '',
+        ],
     ];
 }
 
@@ -910,13 +1147,17 @@ function ai_chatbot_sanitize_setting($key, $value)
 
     switch ($key) {
         case 'chatbot_enabled':
+        case 'chatbot_admin_endpoint_enabled':
         case 'chatbot_welcome_enabled':
+        case 'chatbot_handoff_enabled':
             return (in_array(strtolower((string) $value), ['1', 'yes', 'true'], true)) ? '1' : '0';
 
         case 'chatbot_footer_targets':
+        case 'chatbot_footer_targets_admin':
             return ai_chatbot_normalize_footer_targets($value);
 
         case 'chatbot_endpoint':
+        case 'chatbot_endpoint_admin':
         case 'chatbot_avatar_url':
             $sanitised = filter_var((string) $value, FILTER_SANITIZE_URL);
             return $sanitised ?: '';
@@ -930,23 +1171,29 @@ function ai_chatbot_sanitize_setting($key, $value)
             return in_array($value, ['left', 'right'], true) ? $value : 'right';
 
         case 'chatbot_auth_type':
+        case 'chatbot_admin_auth_type':
             $value = strtolower((string) $value);
             return in_array($value, ['none', 'basic', 'header', 'jwt'], true) ? $value : 'none';
 
         case 'chatbot_basic_user':
+        case 'chatbot_admin_basic_user':
             return ai_chatbot_limit_length($value, 120);
 
         case 'chatbot_basic_pass':
+        case 'chatbot_admin_basic_pass':
             return (string) $value;
 
         case 'chatbot_header_key':
+        case 'chatbot_admin_header_key':
             $value = preg_replace('/[^A-Za-z0-9\-]/', '', (string) $value);
             return $value !== '' ? $value : 'X-API-Key';
 
         case 'chatbot_header_value':
+        case 'chatbot_admin_header_value':
             return (string) $value;
 
         case 'chatbot_as_bearer':
+        case 'chatbot_admin_as_bearer':
             return (strtolower((string) $value) === 'yes') ? 'yes' : 'no';
 
         case 'chatbot_jwt_token':
@@ -954,9 +1201,15 @@ function ai_chatbot_sanitize_setting($key, $value)
         case 'chatbot_jwt_iss':
         case 'chatbot_jwt_aud':
         case 'chatbot_jwt_sub':
+        case 'chatbot_admin_jwt_token':
+        case 'chatbot_admin_jwt_secret':
+        case 'chatbot_admin_jwt_iss':
+        case 'chatbot_admin_jwt_aud':
+        case 'chatbot_admin_jwt_sub':
             return ai_chatbot_limit_length($value, 255);
 
         case 'chatbot_jwt_ttl':
+        case 'chatbot_admin_jwt_ttl':
             $n = (int) $value;
             if ($n < 60) {
                 $n = 300;
@@ -1001,6 +1254,67 @@ function ai_chatbot_sanitize_setting($key, $value)
         case 'chatbot_request_timeout':
             return ai_chatbot_normalise_timeout($value, 30);
 
+        case 'chatbot_status_throttle':
+            $n = (int) $value;
+            if ($n < 0) {
+                $n = 0;
+            } elseif ($n > 600) {
+                $n = 600;
+            }
+            return (string) $n;
+
+        case 'chatbot_response_key':
+        case 'chatbot_admin_response_key':
+            $value = trim((string) $value);
+            if ($value === '') {
+                return '';
+            }
+            $value = preg_replace('/[^A-Za-z0-9_.-]/', '', $value);
+            return ai_chatbot_limit_length($value, 80);
+
+        case 'chatbot_system_prompt':
+        case 'chatbot_admin_system_prompt':
+            return ai_chatbot_limit_length($value, 2000);
+
+        case 'chatbot_temperature':
+        case 'chatbot_admin_temperature':
+            $n = is_numeric($value) ? (float) $value : 0.7;
+            if ($n < 0) {
+                $n = 0;
+            } elseif ($n > 2) {
+                $n = 2;
+            }
+            return rtrim(rtrim(sprintf('%.2F', $n), '0'), '.');
+
+        case 'chatbot_max_tokens':
+        case 'chatbot_admin_max_tokens':
+            $n = (int) $value;
+            if ($n < 16) {
+                $n = 16;
+            } elseif ($n > 4096) {
+                $n = 4096;
+            }
+            return (string) $n;
+
+        case 'chatbot_meta_scope':
+        case 'chatbot_admin_meta_scope':
+            $value = strtolower(trim((string) $value));
+            if ($value === '') {
+                return '';
+            }
+            $value = preg_replace('/[^a-z0-9_.-]/', '', $value);
+            return ai_chatbot_limit_length($value, 40);
+
+        case 'chatbot_meta_entity_id':
+        case 'chatbot_meta_owner_id':
+        case 'chatbot_admin_meta_entity_id':
+        case 'chatbot_admin_meta_owner_id':
+            return ai_chatbot_limit_length($value, 120);
+
+        case 'chatbot_message_format':
+            $value = strtolower((string) $value);
+            return in_array($value, ['plain', 'markdown', 'markdown_v2'], true) ? $value : 'markdown';
+
         case 'chatbot_user_input_max_chars':
             $n = (int) $value;
             if ($n < 100) {
@@ -1009,6 +1323,24 @@ function ai_chatbot_sanitize_setting($key, $value)
                 $n = 4000;
             }
             return (string) $n;
+
+        case 'chatbot_handoff_label':
+            return ai_chatbot_limit_length($value, 80);
+
+        case 'chatbot_handoff_timeout':
+            $n = (int) $value;
+            if ($n < 0) {
+                $n = 0;
+            } elseif ($n > 86400) {
+                $n = 86400;
+            }
+            return (string) $n;
+
+        case 'chatbot_handoff_reason':
+            return ai_chatbot_limit_length($value, 120);
+
+        case 'chatbot_handoff_notice':
+            return ai_chatbot_limit_length($value, 200);
 
         case 'chatbot_frame_mode':
             $value = strtolower((string) $value);
@@ -1031,6 +1363,68 @@ function ai_chatbot_sanitize_setting($key, $value)
                 $n = 800;
             }
             return (string) $n;
+
+        case 'chatbot_theme_preset':
+            $value = strtolower((string) $value);
+            return in_array($value, ['custom', 'ocean', 'dark_glass', 'minimal', 'neon', 'forest'], true) ? $value : 'custom';
+
+        case 'chatbot_header_bg':
+        case 'chatbot_header_text':
+        case 'chatbot_launcher_bg':
+        case 'chatbot_launcher_text':
+        case 'chatbot_send_bg':
+        case 'chatbot_send_text':
+        case 'chatbot_frame_bg':
+        case 'chatbot_messages_bg':
+        case 'chatbot_input_bg':
+        case 'chatbot_input_text':
+        case 'chatbot_input_border':
+        case 'chatbot_input_area_bg':
+            return ai_chatbot_limit_length($value, 120);
+
+        case 'chatbot_input_area_padding_x':
+        case 'chatbot_input_area_padding_y':
+            $padding = (int) $value;
+            return (string) max(6, min($padding, 24));
+
+        case 'chatbot_input_area_blur':
+            $blur = (int) $value;
+            return (string) max(0, min($blur, 20));
+
+        case 'chatbot_bubble_radius':
+            $radius = (int) $value;
+            return (string) max(0, min($radius, 40));
+
+        case 'chatbot_bubble_padding_x':
+        case 'chatbot_bubble_padding_y':
+            $padding = (int) $value;
+            return (string) max(0, min($padding, 30));
+
+        case 'chatbot_bubble_font_size':
+            $font = (int) $value;
+            return (string) max(10, min($font, 20));
+
+        case 'chatbot_bubble_line_height':
+            $line = is_numeric($value) ? (float) $value : 1.45;
+            if ($line <= 0) {
+                $line = 1.45;
+            }
+            return rtrim(rtrim(sprintf('%.2F', max(1.1, min($line, 2.0))), '0'), '.');
+
+        case 'chatbot_bubble_max_width':
+            $width = (int) $value;
+            return (string) max(60, min($width, 100));
+
+        case 'chatbot_bubble_bot_bg':
+        case 'chatbot_bubble_bot_text':
+        case 'chatbot_bubble_bot_border':
+        case 'chatbot_bubble_user_bg':
+        case 'chatbot_bubble_user_text':
+        case 'chatbot_bubble_user_border':
+            return ai_chatbot_limit_length($value, 120);
+
+        case 'chatbot_message_font_family':
+            return ai_chatbot_limit_length($value, 160);
 
         case 'chatbot_welcome_message':
             return ai_chatbot_limit_length($value, 1000);
@@ -1108,8 +1502,15 @@ function ai_chatbot_show_settings_page($active_section = 'general')
             } else {
                 $post_data['chatbot_footer_targets'] = '';
             }
+            if (isset($post_data['chatbot_footer_targets_admin']) && is_array($post_data['chatbot_footer_targets_admin'])) {
+                $post_data['chatbot_footer_targets_admin'] = implode(',', $post_data['chatbot_footer_targets_admin']);
+            } else {
+                $post_data['chatbot_footer_targets_admin'] = '';
+            }
         } elseif (isset($post_data['chatbot_footer_targets']) && is_array($post_data['chatbot_footer_targets'])) {
             $post_data['chatbot_footer_targets'] = implode(',', $post_data['chatbot_footer_targets']);
+        } elseif (isset($post_data['chatbot_footer_targets_admin']) && is_array($post_data['chatbot_footer_targets_admin'])) {
+            $post_data['chatbot_footer_targets_admin'] = implode(',', $post_data['chatbot_footer_targets_admin']);
         }
 
         $updated_keys = [];
@@ -1135,7 +1536,9 @@ function ai_chatbot_show_settings_page($active_section = 'general')
         }
 
         if (!empty($updated_keys)) {
-            $selected_targets = ai_chatbot_parse_footer_targets($current_config['chatbot_footer_targets'] ?? '');
+            $public_targets = ai_chatbot_parse_footer_targets($current_config['chatbot_footer_targets'] ?? '');
+            $admin_targets = ai_chatbot_parse_footer_targets($current_config['chatbot_footer_targets_admin'] ?? '');
+            $selected_targets = array_values(array_unique(array_merge($public_targets, $admin_targets)));
             ai_chatbot_sync_footer_includes(($current_config['chatbot_enabled'] ?? '0') === '1', $selected_targets);
             _msglog('s', 'Settings saved successfully');
         } else {
@@ -1146,27 +1549,38 @@ function ai_chatbot_show_settings_page($active_section = 'general')
     }
 
     $footer_options = ai_chatbot_footer_options();
-    $footer_selected = ai_chatbot_parse_footer_targets($current_config['chatbot_footer_targets'] ?? '');
+    $footer_public_selected = ai_chatbot_parse_footer_targets($current_config['chatbot_footer_targets'] ?? '');
+    $footer_admin_selected = ai_chatbot_parse_footer_targets($current_config['chatbot_footer_targets_admin'] ?? '');
 
-    ai_chatbot_sync_footer_includes(($current_config['chatbot_enabled'] ?? '0') === '1', $footer_selected);
+    $selected_targets = array_values(array_unique(array_merge($footer_public_selected, $footer_admin_selected)));
+    ai_chatbot_sync_footer_includes(($current_config['chatbot_enabled'] ?? '0') === '1', $selected_targets);
 
     foreach ($footer_options as $option_key => &$option) {
         $option_path = $option['path'] ?? $option_key;
         $option_path = ai_chatbot_normalize_target_path($option_path);
         $option['path'] = $option_path;
-        $option['selected'] = in_array($option_path, $footer_selected, true);
     }
     unset($option);
 
-    $footer_options = array_values($footer_options);
+    $footer_grouped = ai_chatbot_group_footer_options(array_values($footer_options));
+    foreach ($footer_grouped['public'] as &$option) {
+        $option['selected'] = in_array($option['path'], $footer_public_selected, true);
+    }
+    unset($option);
+    foreach ($footer_grouped['admin'] as &$option) {
+        $option['selected'] = in_array($option['path'], $footer_admin_selected, true);
+    }
+    unset($option);
 
     $ui->assign('config', $current_config);
     if (class_exists('Csrf') && ($config['csrf_enabled'] ?? 'yes') === 'yes') {
         $ui->assign('csrf_token', Csrf::generateAndStoreToken());
     }
     $ui->assign('chatbot_defaults', ai_chatbot_defaults());
-    $ui->assign('chatbot_footer_options', $footer_options);
-    $ui->assign('chatbot_footer_selected', $footer_selected);
+    $ui->assign('chatbot_footer_public_options', $footer_grouped['public']);
+    $ui->assign('chatbot_footer_admin_options', $footer_grouped['admin']);
+    $ui->assign('chatbot_footer_public_selected', $footer_public_selected);
+    $ui->assign('chatbot_footer_admin_selected', $footer_admin_selected);
     $ui->display('[plugin]ai_chatbot_settings.tpl');
 }
 function ai_chatbot_json_response(array $payload, $status = 200, array $extra_headers = [])
@@ -1214,6 +1628,120 @@ function ai_chatbot_send_error($message, $status = 400, array $extra = [], array
     ai_chatbot_json_response($payload, $status, $headers);
 }
 
+function ai_chatbot_append_auth_headers(array &$headers, array $auth)
+{
+    switch ($auth['type'] ?? 'none') {
+        case 'basic':
+            $user = (string) ($auth['basic_user'] ?? '');
+            $pass = (string) ($auth['basic_pass'] ?? '');
+            $headers[] = 'Authorization: Basic ' . base64_encode($user . ':' . $pass);
+            break;
+
+        case 'header':
+            $key = trim((string) ($auth['header_key'] ?? ''));
+            $value = (string) ($auth['header_value'] ?? '');
+            if ($key !== '') {
+                if (!empty($auth['as_bearer'])) {
+                    $headers[] = 'Authorization: Bearer ' . $value;
+                } else {
+                    $headers[] = $key . ': ' . $value;
+                }
+            }
+            break;
+
+        case 'jwt':
+            $token = '';
+            if (!empty($auth['jwt_token'])) {
+                $token = (string) $auth['jwt_token'];
+            } elseif (!empty($auth['jwt_secret'])) {
+                $now = time();
+                $ttl = isset($auth['jwt_ttl']) ? (int) $auth['jwt_ttl'] : 300;
+                if ($ttl <= 0) {
+                    $ttl = 300;
+                }
+                $claims = [
+                    'iat' => $now,
+                    'nbf' => $now,
+                    'exp' => $now + $ttl,
+                ];
+                if (!empty($auth['jwt_iss'])) {
+                    $claims['iss'] = (string) $auth['jwt_iss'];
+                }
+                if (!empty($auth['jwt_aud'])) {
+                    $claims['aud'] = (string) $auth['jwt_aud'];
+                }
+                if (!empty($auth['jwt_sub'])) {
+                    $claims['sub'] = (string) $auth['jwt_sub'];
+                }
+                $token = ai_chatbot_make_jwt($claims, (string) $auth['jwt_secret']);
+            }
+
+            if ($token !== '') {
+                $headers[] = 'Authorization: Bearer ' . $token;
+            }
+            break;
+    }
+}
+
+function ai_chatbot_status()
+{
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    if ($method !== 'GET' && $method !== 'POST') {
+        ai_chatbot_send_error('Method not allowed', 405, [], ['Allow' => 'GET, POST']);
+    }
+
+    ai_chatbot_ensure_session();
+
+    $settings = ai_chatbot_load_config();
+    if (($settings['chatbot_enabled'] ?? '0') !== '1') {
+        ai_chatbot_json_response([
+            'success' => true,
+            'status' => 'offline',
+            'reason' => 'disabled',
+        ]);
+    }
+
+    $proxy_config = ai_chatbot_collect_proxy_config($settings);
+    $endpoint = isset($proxy_config['endpoint']) ? trim((string) $proxy_config['endpoint']) : '';
+    if ($endpoint === '' || !filter_var($endpoint, FILTER_VALIDATE_URL)) {
+        ai_chatbot_json_response([
+            'success' => true,
+            'status' => 'offline',
+            'reason' => 'invalid_endpoint',
+        ]);
+    }
+
+    $headers = ['Content-Type: application/json', 'Accept: application/json'];
+    ai_chatbot_append_auth_headers($headers, $proxy_config['auth'] ?? ['type' => 'none']);
+
+    $request_body = json_encode(['ping' => true], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($request_body === false) {
+        $request_body = '{"ping":true}';
+    }
+
+    $timeout = isset($proxy_config['request_timeout']) ? (int) $proxy_config['request_timeout'] : 30;
+    $timeout = max(2, min(5, $timeout));
+
+    $result = ai_chatbot_post_with_retry($endpoint, $headers, $request_body, $timeout, 1, 0, 0);
+
+    if (!$result['success']) {
+        ai_chatbot_json_response([
+            'success' => true,
+            'status' => 'offline',
+            'reason' => 'connection_failed',
+        ]);
+    }
+
+    $http_code = isset($result['http_code']) ? (int) $result['http_code'] : 0;
+    $online = $http_code >= 200 && $http_code < 500;
+
+    ai_chatbot_json_response([
+        'success' => true,
+        'status' => $online ? 'online' : 'offline',
+        'http_code' => $http_code,
+    ]);
+}
+
 function ai_chatbot_bootstrap()
 {
     global $config, $app_url;
@@ -1230,12 +1758,12 @@ function ai_chatbot_bootstrap()
         ai_chatbot_send_error('Chatbot is disabled', 403);
     }
 
-    $endpoint = isset($settings['chatbot_endpoint']) ? trim((string) $settings['chatbot_endpoint']) : '';
+    $proxy_config = ai_chatbot_collect_proxy_config($settings);
+    $endpoint = isset($proxy_config['endpoint']) ? trim((string) $proxy_config['endpoint']) : '';
     if ($endpoint === '' || !filter_var($endpoint, FILTER_VALIDATE_URL)) {
         ai_chatbot_send_error('Chatbot endpoint is not configured correctly', 500);
     }
 
-    $proxy_config = ai_chatbot_collect_proxy_config($settings);
     [$proxy_id, $config_key] = ai_chatbot_store_proxy_context($proxy_config);
 
     $csrf_token = '';
@@ -1290,8 +1818,15 @@ function ai_chatbot_run_proxy()
         ]);
     }
 
+    $route = isset($payload['route']) ? strtolower(trim((string) $payload['route'])) : '';
+    $handoff_flag = false;
+    if (array_key_exists('handoff', $payload)) {
+        $handoff_flag = filter_var($payload['handoff'], FILTER_VALIDATE_BOOLEAN);
+    }
+    $handoff_request = in_array($route, ['handoff', 'handoff_off', 'handoff_timeout', 'admin'], true) || $handoff_flag;
+
     $chat_input = isset($payload['chatInput']) ? trim((string) $payload['chatInput']) : '';
-    if ($chat_input === '') {
+    if ($chat_input === '' && !$handoff_request) {
         ai_chatbot_send_error('Pesan tidak boleh kosong.', 422, [
             'proxy_id' => $proxy_id,
         ]);
@@ -1352,6 +1887,7 @@ function ai_chatbot_run_proxy()
     }
 
     $payload['chatInput'] = ai_chatbot_limit_length($chat_input, $max_chars > 0 ? $max_chars : 4000);
+    $payload['text'] = $payload['chatInput'];
 
     $history_limit = 200;
     $normalized_history = [];
@@ -1395,14 +1931,174 @@ function ai_chatbot_run_proxy()
         }
     }
 
-    $forward_body = [
-        'input' => $payload['chatInput'],
-        'history' => $payload['history'],
-        'meta' => $clean_meta,
-        'payload' => $payload,
-        'timestamp' => time(),
-        'proxy_id' => $proxy_id,
+    $meta_overrides = $proxy_config['meta_overrides'] ?? [];
+    $override_scope = isset($meta_overrides['scope']) ? trim((string) $meta_overrides['scope']) : '';
+    $override_entity = isset($meta_overrides['entity_id']) ? trim((string) $meta_overrides['entity_id']) : '';
+    $override_owner = isset($meta_overrides['owner_id']) ? trim((string) $meta_overrides['owner_id']) : '';
+
+    if ($override_scope !== '') {
+        $clean_meta['scope'] = $override_scope;
+    }
+    if ($override_entity !== '') {
+        $clean_meta['entityId'] = $override_entity;
+    }
+    if ($override_owner !== '') {
+        $clean_meta['ownerId'] = $override_owner;
+    }
+
+    $request_id = '';
+    if (!empty($clean_meta['requestId'])) {
+        $request_id = (string) $clean_meta['requestId'];
+    } else {
+        $request_id = bin2hex(random_bytes(16));
+        $clean_meta['requestId'] = $request_id;
+    }
+
+    $owner_id = $clean_meta['ownerId'] ?? ($clean_meta['visitorId'] ?? '');
+    $scope = $clean_meta['scope'] ?? 'web';
+    $entity_id = $clean_meta['entityId'] ?? '';
+    if ($entity_id === '' && !empty($clean_meta['pageUrl'])) {
+        $entity_id = (string) (parse_url((string) $clean_meta['pageUrl'], PHP_URL_HOST) ?: '');
+    }
+
+    $metadata = array_filter([
+        'ownerId' => $owner_id,
+        'scope' => $scope,
+        'entityId' => $entity_id,
+        'requestId' => $request_id,
+    ], static function ($value) {
+        return $value !== '';
+    });
+
+    $extra = [
+        'wire_chatbot' => false,
     ];
+    if (!empty($clean_meta['sessionId'])) {
+        $extra['session_id'] = (string) $clean_meta['sessionId'];
+    }
+    if (!empty($clean_meta['contact_id'])) {
+        $extra['contact_id'] = (string) $clean_meta['contact_id'];
+    }
+    if (!empty($clean_meta['contact_jid'])) {
+        $extra['contact_jid'] = (string) $clean_meta['contact_jid'];
+    }
+
+    if ($handoff_request) {
+        $handoff_route = $route !== '' ? $route : 'handoff';
+        $handoff_timeout = isset($payload['handoff_timeout_sec']) ? (int) $payload['handoff_timeout_sec'] : 0;
+        if ($handoff_timeout < 0) {
+            $handoff_timeout = 0;
+        } elseif ($handoff_timeout > 86400) {
+            $handoff_timeout = 86400;
+        }
+        $handoff_reason = isset($payload['handoff_reason'])
+            ? ai_chatbot_limit_length((string) $payload['handoff_reason'], 120)
+            : '';
+
+        $forward_body = [
+            'route' => $handoff_route,
+            'handoff' => $handoff_flag || $handoff_route === 'handoff',
+            'handoff_timeout_sec' => $handoff_timeout > 0 ? $handoff_timeout : null,
+            'handoff_reason' => $handoff_reason,
+            'extra' => $extra,
+            'metadata' => $metadata,
+            'meta' => $clean_meta,
+            'timestamp' => time(),
+            'proxy_id' => $proxy_id,
+        ];
+
+        if ($payload['chatInput'] !== '') {
+            $forward_body['chatInput'] = $payload['chatInput'];
+            $forward_body['text'] = $payload['chatInput'];
+        }
+
+        if (!empty($clean_meta['sessionId'])) {
+            $forward_body['session_id'] = (string) $clean_meta['sessionId'];
+        }
+    } else {
+        $input_type = isset($payload['inputType']) ? strtolower(trim((string) $payload['inputType'])) : 'text';
+        $allowed_types = ['text', 'image', 'document', 'pdf', 'voice'];
+        if (!in_array($input_type, $allowed_types, true)) {
+            $input_type = 'text';
+        }
+
+        $attachments = [];
+        if (isset($payload['attachments']) && is_array($payload['attachments'])) {
+            $attachments = array_values($payload['attachments']);
+            if (count($attachments) > 5) {
+                $attachments = array_slice($attachments, 0, 5);
+            }
+        }
+        $payload['inputType'] = $input_type;
+        $payload['attachments'] = $attachments;
+
+        $system_prompt = trim((string) ($proxy_config['system_prompt'] ?? ''));
+        $temperature = isset($proxy_config['temperature']) ? (float) $proxy_config['temperature'] : 0.7;
+        if ($temperature < 0) {
+            $temperature = 0;
+        } elseif ($temperature > 2) {
+            $temperature = 2;
+        }
+
+        $max_tokens = isset($proxy_config['max_tokens']) ? (int) $proxy_config['max_tokens'] : 512;
+        if ($max_tokens < 16) {
+            $max_tokens = 16;
+        } elseif ($max_tokens > 4096) {
+            $max_tokens = 4096;
+        }
+
+        $messages = [];
+        if ($system_prompt !== '') {
+            $messages[] = [
+                'role' => 'system',
+                'content' => $system_prompt,
+            ];
+        }
+
+        foreach ($normalized_history as $item) {
+            $role = ($item['sender'] ?? 'user') === 'bot' ? 'assistant' : 'user';
+            $messages[] = [
+                'role' => $role,
+                'content' => $item['text'] ?? '',
+            ];
+        }
+        $messages[] = [
+            'role' => 'user',
+            'content' => $payload['chatInput'],
+        ];
+
+        $body_payload = [
+            'chatInput' => $payload['chatInput'],
+            'inputType' => $input_type,
+            'attachments' => $attachments,
+            'text' => $payload['chatInput'],
+        ];
+        $payload['body'] = $body_payload;
+
+        $forward_body = [
+            'system' => $system_prompt,
+            'messages' => $messages,
+            'temperature' => $temperature,
+            'max_tokens' => $max_tokens,
+            'chatInput' => $payload['chatInput'],
+            'text' => $payload['chatInput'],
+            'inputType' => $input_type,
+            'attachments' => $attachments,
+            'body' => $body_payload,
+            'extra' => $extra,
+            'metadata' => $metadata,
+            'input' => $payload['chatInput'],
+            'history' => $payload['history'],
+            'meta' => $clean_meta,
+            'payload' => $payload,
+            'timestamp' => time(),
+            'proxy_id' => $proxy_id,
+        ];
+
+        if (!empty($clean_meta['sessionId'])) {
+            $forward_body['session_id'] = (string) $clean_meta['sessionId'];
+        }
+    }
 
     $headers = ['Content-Type: application/json', 'Accept: application/json'];
 
@@ -1421,58 +2117,25 @@ function ai_chatbot_run_proxy()
         }
     }
 
-    $auth = $proxy_config['auth'] ?? ['type' => 'none'];
-    switch ($auth['type']) {
-        case 'basic':
-            $user = (string) ($auth['basic_user'] ?? '');
-            $pass = (string) ($auth['basic_pass'] ?? '');
-            $headers[] = 'Authorization: Basic ' . base64_encode($user . ':' . $pass);
-            break;
-
-        case 'header':
-            $key = trim((string) ($auth['header_key'] ?? ''));
-            $value = (string) ($auth['header_value'] ?? '');
-            if ($key !== '') {
-                if (!empty($auth['as_bearer'])) {
-                    $headers[] = 'Authorization: Bearer ' . $value;
-                } else {
-                    $headers[] = $key . ': ' . $value;
-                }
-            }
-            break;
-
-        case 'jwt':
-            $token = '';
-            if (!empty($auth['jwt_token'])) {
-                $token = (string) $auth['jwt_token'];
-            } elseif (!empty($auth['jwt_secret'])) {
-                $now = time();
-                $ttl = isset($auth['jwt_ttl']) ? (int) $auth['jwt_ttl'] : 300;
-                if ($ttl <= 0) {
-                    $ttl = 300;
-                }
-                $claims = [
-                    'iat' => $now,
-                    'nbf' => $now,
-                    'exp' => $now + $ttl,
-                ];
-                if (!empty($auth['jwt_iss'])) {
-                    $claims['iss'] = (string) $auth['jwt_iss'];
-                }
-                if (!empty($auth['jwt_aud'])) {
-                    $claims['aud'] = (string) $auth['jwt_aud'];
-                }
-                if (!empty($auth['jwt_sub'])) {
-                    $claims['sub'] = (string) $auth['jwt_sub'];
-                }
-                $token = ai_chatbot_make_jwt($claims, (string) $auth['jwt_secret']);
-            }
-
-            if ($token !== '') {
-                $headers[] = 'Authorization: Bearer ' . $token;
-            }
-            break;
+    if (!empty($metadata['requestId'])) {
+        $safe_request_id = str_replace(["\r", "\n"], ' ', (string) $metadata['requestId']);
+        $headers[] = 'X-AI-Request-ID: ' . $safe_request_id;
+        $headers[] = 'X-Idempotency-Key: ' . $safe_request_id;
     }
+    if (!empty($metadata['scope'])) {
+        $headers[] = 'X-AI-Scope: ' . str_replace(["\r", "\n"], ' ', (string) $metadata['scope']);
+    }
+    if (!empty($metadata['entityId'])) {
+        $headers[] = 'X-AI-Entity: ' . str_replace(["\r", "\n"], ' ', (string) $metadata['entityId']);
+    }
+    if (!empty($metadata['ownerId'])) {
+        $headers[] = 'X-AI-Owner: ' . str_replace(["\r", "\n"], ' ', (string) $metadata['ownerId']);
+    }
+    if (!empty($clean_meta['sessionId'])) {
+        $headers[] = 'X-AI-Session: ' . str_replace(["\r", "\n"], ' ', (string) $clean_meta['sessionId']);
+    }
+
+    ai_chatbot_append_auth_headers($headers, $proxy_config['auth'] ?? ['type' => 'none']);
 
     $request_body = json_encode($forward_body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($request_body === false) {
