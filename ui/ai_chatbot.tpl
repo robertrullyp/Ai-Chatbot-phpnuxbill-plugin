@@ -310,6 +310,10 @@
         color: var(--chatbot-header-text);
     }
 
+    .chatbot-header__status.is-handoff {
+        font-weight: 700;
+    }
+
     .chatbot-header__status::before {
         content: "";
         width: 7px;
@@ -429,15 +433,85 @@
         border-radius: 999px;
     }
 
+    .chatbot-scroll-bottom {
+        position: absolute;
+        right: 12px;
+        bottom: 68px;
+        height: 30px;
+        min-height: 30px;
+        max-height: 30px;
+        width: 128px;
+        min-width: 96px;
+        border-radius: 999px;
+        border: none;
+        background: rgba(15, 23, 42, 0.08);
+        color: var(--chatbot-text);
+        box-shadow: 0 6px 12px rgba(15, 23, 42, 0.12);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 0 12px;
+        line-height: 1;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(4px);
+        transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+        z-index: 2;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        top: auto;
+    }
+
+    .chatbot-scroll-bottom svg {
+        width: 12px;
+        height: 12px;
+        flex-shrink: 0;
+    }
+
+    .chatbot-scroll-bottom__label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+
+    .chatbot-scroll-bottom.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+    }
+
+    .chatbot-scroll-bottom:hover {
+        background: rgba(15, 23, 42, 0.16);
+    }
+
+    body.dark-mode .chatbot-scroll-bottom,
+    .dark-mode .chatbot-scroll-bottom,
+    [data-theme="dark"] .chatbot-scroll-bottom {
+        background: rgba(148, 163, 184, 0.16);
+        color: #e2e8f0;
+    }
+
+    body.dark-mode .chatbot-scroll-bottom:hover,
+    .dark-mode .chatbot-scroll-bottom:hover,
+    [data-theme="dark"] .chatbot-scroll-bottom:hover {
+        background: rgba(148, 163, 184, 0.28);
+    }
+
     .chatbot-message {
         display: flex;
         max-width: var(--chatbot-bubble-max-width, 80%);
         animation: chatbot-message-in 180ms ease-out both;
+        position: relative;
     }
 
     .chatbot-message.user {
         margin-left: auto;
         flex-direction: row-reverse;
+    }
+
+    .chatbot-message.bot {
+        padding-left: 22px;
     }
 
     .chatbot-message-content {
@@ -451,6 +525,68 @@
         font-family: var(--chatbot-message-font, inherit);
         word-break: break-word;
         border: 1px solid var(--chatbot-bubble-bot-border);
+        position: relative;
+    }
+
+    .chatbot-copy-btn {
+        position: absolute;
+        left: 0;
+        bottom: 4px;
+        width: 16px !important;
+        height: 16px !important;
+        border-radius: 4px;
+        border: none;
+        background: rgba(15, 23, 42, 0.12);
+        color: var(--chatbot-bubble-bot-text);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+        cursor: pointer;
+        padding: 0 !important;
+        min-height: 0 !important;
+        line-height: 1 !important;
+        transform: translateY(4px);
+    }
+
+    .chatbot-message:hover .chatbot-copy-btn,
+    .chatbot-message:focus-within .chatbot-copy-btn {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+    }
+
+    .chatbot-copy-btn:hover {
+        background: rgba(15, 23, 42, 0.16);
+    }
+
+    .chatbot-copy-btn svg {
+        width: 10px;
+        height: 10px;
+    }
+
+    .chatbot-message.user .chatbot-copy-btn {
+        background: rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+    }
+
+    .chatbot-message.user .chatbot-copy-btn:hover {
+        background: rgba(255, 255, 255, 0.4);
+    }
+
+    body.dark-mode .chatbot-copy-btn,
+    .dark-mode .chatbot-copy-btn,
+    [data-theme="dark"] .chatbot-copy-btn {
+        background: rgba(148, 163, 184, 0.2);
+        color: #e2e8f0;
+    }
+
+    body.dark-mode .chatbot-copy-btn:hover,
+    .dark-mode .chatbot-copy-btn:hover,
+    [data-theme="dark"] .chatbot-copy-btn:hover {
+        background: rgba(148, 163, 184, 0.32);
     }
 
     .chatbot-message-content p {
@@ -580,6 +716,7 @@
         justify-content: center;
         gap: 6px;
         padding: 10px 16px;
+        flex-direction: row;
     }
 
     .typing-indicator span {
@@ -978,6 +1115,11 @@
         .chatbot-input-area input[type="text"]:focus {
             background-color: var(--chatbot-input-bg-focus);
         }
+
+        .chatbot-scroll-bottom {
+            background: rgba(148, 163, 184, 0.16);
+            color: #e2e8f0;
+        }
     }
 
     @media (max-width: 720px) {
@@ -1062,6 +1204,13 @@
             </div>
         </div>
         <div class="chatbot-messages" role="log" aria-live="polite"></div>
+        <button type="button" class="chatbot-scroll-bottom" aria-label="Scroll to latest" title="Scroll to latest">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <polyline points="19 12 12 19 5 12"></polyline>
+            </svg>
+            <span class="chatbot-scroll-bottom__label">Pesan Terbaru</span>
+        </button>
         <form class="chatbot-input-area" autocomplete="off">
             <label class="chatbot-input__label" for="chatbot-input">Type your message</label>
             <textarea id="chatbot-input" name="chatbot-input" placeholder="Compose your message..." maxlength="{$chatbot.chatbot_user_input_max_chars|default:1000|intval}" rows="1" autocomplete="off"></textarea>
@@ -1099,6 +1248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const closeButton = chatFrame ? chatFrame.querySelector('.chatbot-close') : null;
     const handoffButton = chatFrame ? chatFrame.querySelector('.chatbot-handoff') : null;
     const messagesContainer = chatFrame ? chatFrame.querySelector('.chatbot-messages') : null;
+    const scrollButton = chatFrame ? chatFrame.querySelector('.chatbot-scroll-bottom') : null;
     const form = chatFrame ? chatFrame.querySelector('.chatbot-input-area') : null;
     const input = document.getElementById('chatbot-input');
     const sendButton = document.getElementById('chatbot-send');
@@ -1117,7 +1267,7 @@ document.addEventListener('DOMContentLoaded', () => {
     input.disabled = true;
     sendButton.disabled = true;
 
-    const pageContext = "{if isset($_admin) && $_admin}admin{elseif isset($_user) && $_user}customer{else}public{/if}";
+    const pageContext = "{if isset($_admin) && $_admin}admin{elseif isset($_user) && $_user}customer{/if}";
     const contextParam = pageContext ? '&context=' + encodeURIComponent(pageContext) : '';
     const bootstrapUrl = "{$app_url|escape:'javascript'}?_route=plugin/ai_chatbot_settings/bootstrap" + contextParam;
     const statusUrl = "{$app_url|escape:'javascript'}?_route=plugin/ai_chatbot_settings/status" + contextParam;
@@ -1127,6 +1277,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let statusCheckInFlight = false;
     let lastStatusCheckedAt = 0;
     let handoffInFlight = false;
+    let handoffActive = false;
+    let handoffStorageKey = null;
+    let baseStatusState = 'checking';
+    let baseStatusLabel = 'Checking...';
 
     const visitorIdKey = 'ai_chatbot_visitor_id';
     const sessionIdKey = 'ai_chatbot_session_id';
@@ -1182,12 +1336,21 @@ document.addEventListener('DOMContentLoaded', () => {
         chatFrame.dataset.frameMode = frameMode;
     }
 
-    function setStatus(state, label) {
+    function applyStatus(state, label) {
         if (!statusEl) {
             return;
         }
         statusEl.dataset.status = state;
         statusEl.textContent = label;
+        statusEl.classList.toggle('is-handoff', state === 'handoff');
+    }
+
+    function setStatus(state, label) {
+        baseStatusState = state;
+        baseStatusLabel = label;
+        if (!handoffActive) {
+            applyStatus(state, label);
+        }
     }
 
     function setSendLoading(isLoading) {
@@ -1196,6 +1359,166 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         sendButton.classList.toggle('is-loading', isLoading);
         sendButton.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+    }
+
+    function setHandoffActive(isActive) {
+        if (!handoffEnabled) {
+            handoffActive = false;
+            if (root) {
+                root.dataset.handoffActive = '0';
+            }
+            updateHandoffUI();
+            return;
+        }
+        handoffActive = Boolean(isActive);
+        if (root) {
+            root.dataset.handoffActive = handoffActive ? '1' : '0';
+        }
+        if (handoffButton) {
+            handoffButton.classList.toggle('is-active', handoffActive);
+        }
+        updateHandoffUI();
+        if (handoffStorageKey) {
+            try {
+                if (handoffActive) {
+                    localStorage.setItem(handoffStorageKey, '1');
+                } else {
+                    localStorage.removeItem(handoffStorageKey);
+                }
+            } catch (error) {
+                // ignore storage errors
+            }
+        }
+    }
+
+    function updateHandoffUI() {
+        if (handoffActive) {
+            applyStatus('handoff', 'Admin Terhubung');
+        } else {
+            applyStatus(baseStatusState, baseStatusLabel);
+        }
+        if (handoffButton) {
+            const label = handoffActive ? 'Akhiri Percakapan' : handoffLabel;
+            handoffButton.textContent = label;
+            handoffButton.setAttribute('aria-label', label);
+        }
+    }
+
+    function syncHandoffStateFromResponse(data) {
+        if (!handoffEnabled || !data || typeof data !== 'object') {
+            return;
+        }
+        const info = data.handoff;
+        if (!info || typeof info !== 'object') {
+            return;
+        }
+        if (info.timeout) {
+            const wasActive = handoffActive;
+            setHandoffActive(false);
+            if (wasActive) {
+                sendHandoffOff();
+            }
+        } else if (info.bound) {
+            setHandoffActive(true);
+        }
+    }
+
+    function parseRgb(value) {
+        if (!value) {
+            return null;
+        }
+        const match = value.match(/rgba?\(\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)(?:\s*,\s*([0-9.]+))?\s*\)/i);
+        if (!match) {
+            return null;
+        }
+        return {
+            r: parseInt(match[1], 10),
+            g: parseInt(match[2], 10),
+            b: parseInt(match[3], 10),
+            a: match[4] !== undefined ? parseFloat(match[4]) : 1
+        };
+    }
+
+    function relativeLuminance(rgb) {
+        if (!rgb) {
+            return 0;
+        }
+        const toLinear = (channel) => {
+            const c = channel / 255;
+            return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+        };
+        const r = toLinear(rgb.r);
+        const g = toLinear(rgb.g);
+        const b = toLinear(rgb.b);
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    function contrastRatio(l1, l2) {
+        const light = Math.max(l1, l2);
+        const dark = Math.min(l1, l2);
+        return (light + 0.05) / (dark + 0.05);
+    }
+
+    function ensureInputContrast() {
+        if (!input) {
+            return;
+        }
+        const styles = getComputedStyle(input);
+        const fg = parseRgb(styles.color);
+        let bg = parseRgb(styles.backgroundColor);
+        if (!bg || bg.a < 0.15) {
+            const area = input.closest('.chatbot-input-area');
+            if (area) {
+                const areaBg = parseRgb(getComputedStyle(area).backgroundColor);
+                if (areaBg && areaBg.a >= 0.15) {
+                    bg = areaBg;
+                }
+            }
+        }
+        if (!bg || bg.a < 0.15) {
+            const frameBg = chatFrame ? parseRgb(getComputedStyle(chatFrame).backgroundColor) : null;
+            if (frameBg && frameBg.a >= 0.15) {
+                bg = frameBg;
+            }
+        }
+        if (!fg || !bg) {
+            return;
+        }
+        const ratio = contrastRatio(relativeLuminance(fg), relativeLuminance(bg));
+        if (ratio >= 4.5) {
+            input.style.removeProperty('color');
+            input.style.removeProperty('caret-color');
+            return;
+        }
+        const fallback = relativeLuminance(bg) > 0.5 ? 'rgb(15, 23, 42)' : 'rgb(226, 232, 240)';
+        input.style.setProperty('color', fallback, 'important');
+        input.style.setProperty('caret-color', fallback, 'important');
+    }
+
+    function isNearBottom() {
+        if (!messagesContainer) {
+            return true;
+        }
+        const gap = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
+        return gap < 120;
+    }
+
+    function updateScrollButton() {
+        if (!scrollButton) {
+            return;
+        }
+        scrollButton.classList.toggle('is-visible', !isNearBottom());
+    }
+
+    function scrollToBottom(behavior = 'smooth') {
+        if (!messagesContainer) {
+            return;
+        }
+        messagesContainer.scrollTo({
+            top: messagesContainer.scrollHeight,
+            behavior: behavior
+        });
+        updateScrollButton();
     }
 
     function openImageViewer(src) {
@@ -1305,6 +1628,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const sessionToken = sessionFingerprint !== '' ? sessionFingerprint : null;
     const baseHistoryKey = 'ai_chatbot_history_' + visitorId;
     const historyKey = sessionFingerprint ? baseHistoryKey + '_' + sessionFingerprint : baseHistoryKey;
+    handoffStorageKey = sessionFingerprint
+        ? 'ai_chatbot_handoff_' + sessionFingerprint
+        : 'ai_chatbot_handoff_' + visitorId;
 
     try {
         const legacyKeys = [
@@ -1382,6 +1708,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function attachCopyButton(messageDiv) {
+        if (!messageDiv || !messageDiv.classList.contains('bot')) {
+            return;
+        }
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'chatbot-copy-btn';
+        button.setAttribute('aria-label', 'Copy message');
+        button.setAttribute('title', 'Copy');
+        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+        messageDiv.appendChild(button);
+    }
+
     function addMessage(sender, text, isTyping = false) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('chatbot-message', sender);
@@ -1406,10 +1745,27 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         messageDiv.appendChild(contentDiv);
+        if (!isTyping) {
+            attachCopyButton(messageDiv);
+        }
         messagesContainer.appendChild(messageDiv);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        updateScrollButton();
         updateAutoHeight();
         return messageDiv;
+    }
+
+    function restoreHandoffState() {
+        if (!handoffEnabled || !handoffStorageKey) {
+            return;
+        }
+        try {
+            if (localStorage.getItem(handoffStorageKey) === '1') {
+                setHandoffActive(true);
+            }
+        } catch (error) {
+            // ignore storage errors
+        }
     }
 
     function escapeHtml(value) {
@@ -1613,6 +1969,50 @@ document.addEventListener('DOMContentLoaded', () => {
         return html;
     }
 
+    function getMessagePlainText(messageEl) {
+        if (!messageEl) {
+            return '';
+        }
+        const content = messageEl.querySelector('.chatbot-message-content');
+        if (!content) {
+            return '';
+        }
+        const clone = content.cloneNode(true);
+        clone.querySelectorAll('.chatbot-copy-btn').forEach((btn) => btn.remove());
+        const text = clone.innerText || clone.textContent || '';
+        return text.replace(/\n\n\n+/g, '\n\n').trim();
+    }
+
+    function copyToClipboard(text) {
+        if (!text) {
+            return Promise.resolve();
+        }
+        if (navigator.clipboard && window.isSecureContext) {
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise((resolve, reject) => {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                const success = document.execCommand('copy');
+                document.body.removeChild(textarea);
+                if (success) {
+                    resolve();
+                } else {
+                    reject(new Error('copy_failed'));
+                }
+            } catch (error) {
+                document.body.removeChild(textarea);
+                reject(error);
+            }
+        });
+    }
+
     function updateAutoHeight() {
         if (frameMode !== 'auto' || !chatFrame) {
             return;
@@ -1647,6 +2047,8 @@ document.addEventListener('DOMContentLoaded', () => {
             chatButton.setAttribute('aria-expanded', 'true');
 
             checkStatus();
+            ensureInputContrast();
+            updateScrollButton();
 
             if (history.length === 0 && settings.welcome_enabled) {
                 const welcomeMessageText = settings.welcome_message || '';
@@ -1805,6 +2207,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const cleanedText = rawText.replace(/\r\n/g, '\n').trim();
+        const isHandoffMode = handoffEnabled && handoffActive;
 
         addMessage('user', cleanedText);
         history.push({ sender: 'user', text: cleanedText });
@@ -1819,16 +2222,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const requestId = uuidv4();
-            const requestPayload = {
-                chatInput: cleanedText,
-                text: cleanedText,
-                inputType: 'text',
-                attachments: [],
-                history: history.slice(0, -1)
-            };
+            const requestPayload = isHandoffMode
+                ? {
+                    route: 'handoff',
+                    handoff: true,
+                    handoff_timeout_sec: handoffTimeout,
+                    handoff_reason: handoffReason,
+                    chatInput: cleanedText,
+                    text: cleanedText
+                }
+                : {
+                    chatInput: cleanedText,
+                    text: cleanedText,
+                    inputType: 'text',
+                    attachments: [],
+                    history: history.slice(0, -1)
+                };
 
             if (sessionToken) {
-                requestPayload.sessionId = sessionToken;
+                if (isHandoffMode) {
+                    requestPayload.session_id = sessionToken;
+                } else {
+                    requestPayload.sessionId = sessionToken;
+                }
             }
 
             const requestMeta = {
@@ -1898,6 +2314,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 typingIndicator.remove();
             }
 
+            syncHandoffStateFromResponse(data);
+
             addMessage('bot', finalText);
             history.push({ sender: 'bot', text: finalText });
             saveHistory();
@@ -1920,6 +2338,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         handoffInFlight = true;
+        setHandoffActive(true);
         if (handoffButton) {
             handoffButton.disabled = true;
         }
@@ -1932,11 +2351,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const requestId = uuidv4();
+            const handoffMessage = handoffLabel
+                ? 'User meminta ' + handoffLabel
+                : 'User meminta chat dengan admin.';
             const requestPayload = {
                 route: 'handoff',
                 handoff: true,
                 handoff_timeout_sec: handoffTimeout,
-                handoff_reason: handoffReason
+                handoff_reason: handoffReason,
+                chatInput: handoffMessage,
+                text: handoffMessage
             };
 
             if (sessionToken) {
@@ -1990,6 +2414,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const errorMessage = data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.';
                 addMessage('bot', 'Error: ' + errorMessage);
             } else {
+                syncHandoffStateFromResponse(data);
                 const handoffResponse = extractBotMessage(data);
                 if (handoffResponse) {
                     addMessage('bot', handoffResponse);
@@ -2004,6 +2429,59 @@ document.addEventListener('DOMContentLoaded', () => {
             if (handoffButton) {
                 handoffButton.disabled = false;
             }
+        }
+    }
+
+    async function sendHandoffOff() {
+        if (!handoffEnabled || !chatConfig.proxy_url || !sessionToken) {
+            return;
+        }
+        try {
+            const requestId = uuidv4();
+            const requestPayload = {
+                route: 'handoff_off',
+                session_id: sessionToken
+            };
+
+            const requestMeta = {
+                visitorId: visitorId,
+                ownerId: metaOwnerOverride || visitorId,
+                scope: metaScopeOverride || 'web',
+                entityId: metaEntityOverride || (window.location.hostname || ''),
+                requestId: requestId,
+                pageUrl: window.location.href
+            };
+
+            const payload = {
+                proxy_id: chatConfig.proxy_id,
+                config_key: chatConfig.config_key,
+                payload: requestPayload,
+                meta: requestMeta
+            };
+
+            if (csrfToken) {
+                payload.csrf_token = csrfToken;
+            }
+
+            const response = await fetch(chatConfig.proxy_url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+
+            let data = null;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                data = null;
+            }
+
+            if (data && typeof data === 'object' && data !== null && data.csrf_token) {
+                csrfToken = data.csrf_token;
+            }
+        } catch (error) {
+            // ignore handoff_off failures
         }
     }
 
@@ -2028,6 +2506,7 @@ document.addEventListener('DOMContentLoaded', () => {
             input.disabled = false;
             sendButton.disabled = false;
             root.classList.add('ai-chatbot-root--ready');
+            ensureInputContrast();
         } catch (error) {
             console.error('AI Chatbot bootstrap failed:', error);
             root.style.display = 'none';
@@ -2039,7 +2518,45 @@ document.addEventListener('DOMContentLoaded', () => {
     if (handoffButton) {
         handoffButton.addEventListener('click', (event) => {
             event.preventDefault();
+            if (handoffActive) {
+                setHandoffActive(false);
+                sendHandoffOff();
+                return;
+            }
             sendHandoffRequest();
+        });
+    }
+    if (scrollButton) {
+        scrollButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            scrollToBottom();
+        });
+    }
+    if (messagesContainer) {
+        messagesContainer.addEventListener('scroll', updateScrollButton);
+        messagesContainer.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!target) {
+                return;
+            }
+            const button = target.closest('.chatbot-copy-btn');
+            if (!button) {
+                return;
+            }
+            event.preventDefault();
+            const messageEl = button.closest('.chatbot-message');
+            const text = getMessagePlainText(messageEl);
+            if (!text) {
+                return;
+            }
+            copyToClipboard(text).then(() => {
+                button.setAttribute('title', 'Copied');
+                setTimeout(() => {
+                    button.setAttribute('title', 'Copy');
+                }, 1200);
+            }).catch(() => {
+                // ignore copy failures
+            });
         });
     }
     form.addEventListener('submit', (event) => {
@@ -2051,6 +2568,12 @@ document.addEventListener('DOMContentLoaded', () => {
             event.preventDefault();
             sendMessage();
         }
+    });
+    input.addEventListener('focus', () => {
+        ensureInputContrast();
+    });
+    input.addEventListener('input', () => {
+        ensureInputContrast();
     });
     if (avatarImg && avatarImg.tagName === 'IMG') {
         avatarImg.addEventListener('click', (event) => {
@@ -2074,6 +2597,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('click', handleDocumentClick);
     document.addEventListener('keydown', handleKeydown);
     window.addEventListener('resize', updateAutoHeight);
+    if (window.matchMedia) {
+        const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        if (colorSchemeQuery && typeof colorSchemeQuery.addEventListener === 'function') {
+            colorSchemeQuery.addEventListener('change', ensureInputContrast);
+        } else if (colorSchemeQuery && typeof colorSchemeQuery.addListener === 'function') {
+            colorSchemeQuery.addListener(ensureInputContrast);
+        }
+    }
 
     window.addEventListener('unload', () => {
         document.removeEventListener('click', handleDocumentClick);
@@ -2082,6 +2613,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     loadHistory();
+    restoreHandoffState();
     bootstrapChat();
 });
 </script>
