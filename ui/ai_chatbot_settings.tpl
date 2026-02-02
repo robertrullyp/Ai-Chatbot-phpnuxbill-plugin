@@ -175,6 +175,12 @@
         padding: 16px;
         margin-top: 18px;
     }
+    .chatbot-auth-divider {
+        height: 1px;
+        background: var(--chatbot-border);
+        margin: 18px 0;
+        border: 0;
+    }
     .dark-mode .chatbot-auth-block { background: rgba(2, 6, 23, 0.45); }
     .chatbot-auth-block.is-active {
         display: block;
@@ -453,125 +459,88 @@
                                             </div>
                                             <span class="chatbot-helper">Plugin akan menghasilkan token JWT HS256 baru setiap kali percakapan dikirim.</span>
                                         </div>
-                                    </div>
 
-                                    <div class="chatbot-card chatbot-admin-block js-admin-endpoint-block">
-                                        <h3 class="chatbot-card__title">Metode Autentikasi (Admin)</h3>
-                                        <p class="chatbot-card__subtitle">Autentikasi khusus saat admin memakai endpoint admin.</p>
-                                        <div class="chatbot-grid">
-                                            <div class="form-group">
-                                                <label for="chatbot_admin_auth_type">Authentication Type</label>
-                                                <select id="chatbot_admin_auth_type" name="chatbot_admin_auth_type" class="form-control">
-                                                    <option value="none" {if $config.chatbot_admin_auth_type == 'none'}selected{/if}>None</option>
-                                                    <option value="header" {if $config.chatbot_admin_auth_type == 'header'}selected{/if}>Custom Header</option>
-                                                    <option value="basic" {if $config.chatbot_admin_auth_type == 'basic'}selected{/if}>Basic Auth</option>
-                                                    <option value="jwt" {if $config.chatbot_admin_auth_type == 'jwt'}selected{/if}>JWT (HMAC)</option>
-                                                </select>
-                                                <span class="chatbot-helper">Gunakan Custom Header untuk API key, atau JWT untuk token dinamis.</span>
-                                            </div>
-                                        </div>
-
-                                        <div class="chatbot-auth-block js-admin-auth-block" data-auth-mode="header">
-                                            <div class="chatbot-auth-title">Custom Header</div>
+                                        <div class="chatbot-auth-divider"></div>
+                                        <div class="chatbot-admin-block js-admin-endpoint-block">
+                                            <div class="chatbot-auth-title">Metode Autentikasi (Admin)</div>
                                             <div class="chatbot-grid">
                                                 <div class="form-group">
-                                                    <label for="chatbot_admin_header_key">Header Name</label>
-                                                    <input type="text" id="chatbot_admin_header_key" name="chatbot_admin_header_key" class="form-control" value="{$config.chatbot_admin_header_key|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_admin_header_value">Header Value</label>
-                                                    <input type="text" id="chatbot_admin_header_value" name="chatbot_admin_header_value" class="form-control" value="{$config.chatbot_admin_header_value|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_admin_as_bearer">Format Value</label>
-                                                    <select id="chatbot_admin_as_bearer" name="chatbot_admin_as_bearer" class="form-control">
-                                                        <option value="no" {if $config.chatbot_admin_as_bearer == 'no'}selected{/if}>Gunakan apa adanya</option>
-                                                        <option value="yes" {if $config.chatbot_admin_as_bearer == 'yes'}selected{/if}>Prefix dengan Bearer</option>
+                                                    <label for="chatbot_admin_auth_type">Authentication Type</label>
+                                                    <select id="chatbot_admin_auth_type" name="chatbot_admin_auth_type" class="form-control">
+                                                        <option value="none" {if $config.chatbot_admin_auth_type == 'none'}selected{/if}>None</option>
+                                                        <option value="header" {if $config.chatbot_admin_auth_type == 'header'}selected{/if}>Custom Header</option>
+                                                        <option value="basic" {if $config.chatbot_admin_auth_type == 'basic'}selected{/if}>Basic Auth</option>
+                                                        <option value="jwt" {if $config.chatbot_admin_auth_type == 'jwt'}selected{/if}>JWT (HMAC)</option>
                                                     </select>
-                                                    <span class="chatbot-helper">Jika memilih Bearer, nilai akan dikirim sebagai <code>Authorization: Bearer &lt;value&gt;</code>.</span>
+                                                    <span class="chatbot-helper">Autentikasi khusus saat admin memakai endpoint admin.</span>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <div class="chatbot-auth-block js-admin-auth-block" data-auth-mode="basic">
-                                            <div class="chatbot-auth-title">Basic Authentication</div>
-                                            <div class="chatbot-grid">
-                                                <div class="form-group">
-                                                    <label for="chatbot_admin_basic_user">Username</label>
-                                                    <input type="text" id="chatbot_admin_basic_user" name="chatbot_admin_basic_user" class="form-control" value="{$config.chatbot_admin_basic_user|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_admin_basic_pass">Password</label>
-                                                    <input type="password" id="chatbot_admin_basic_pass" name="chatbot_admin_basic_pass" class="form-control" value="{$config.chatbot_admin_basic_pass|escape}">
+                                            <div class="chatbot-auth-block js-admin-auth-block" data-auth-mode="header">
+                                                <div class="chatbot-auth-title">Custom Header</div>
+                                                <div class="chatbot-grid">
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_header_key">Header Name</label>
+                                                        <input type="text" id="chatbot_admin_header_key" name="chatbot_admin_header_key" class="form-control" value="{$config.chatbot_admin_header_key|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_header_value">Header Value</label>
+                                                        <input type="text" id="chatbot_admin_header_value" name="chatbot_admin_header_value" class="form-control" value="{$config.chatbot_admin_header_value|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_as_bearer">Format Value</label>
+                                                        <select id="chatbot_admin_as_bearer" name="chatbot_admin_as_bearer" class="form-control">
+                                                            <option value="no" {if $config.chatbot_admin_as_bearer == 'no'}selected{/if}>Gunakan apa adanya</option>
+                                                            <option value="yes" {if $config.chatbot_admin_as_bearer == 'yes'}selected{/if}>Prefix dengan Bearer</option>
+                                                        </select>
+                                                        <span class="chatbot-helper">Jika memilih Bearer, nilai akan dikirim sebagai <code>Authorization: Bearer &lt;value&gt;</code>.</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <div class="chatbot-auth-block js-admin-auth-block" data-auth-mode="jwt">
-                                            <div class="chatbot-auth-title">JWT (HS256)</div>
-                                            <div class="chatbot-grid">
-                                                <div class="form-group">
-                                                    <label for="chatbot_admin_jwt_token">Token ID / Subject</label>
-                                                    <input type="text" id="chatbot_admin_jwt_token" name="chatbot_admin_jwt_token" class="form-control" value="{$config.chatbot_admin_jwt_token|escape}" placeholder="token-id">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_admin_jwt_secret">Shared Secret</label>
-                                                    <input type="password" id="chatbot_admin_jwt_secret" name="chatbot_admin_jwt_secret" class="form-control" value="{$config.chatbot_admin_jwt_secret|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_admin_jwt_iss">Issuer (iss)</label>
-                                                    <input type="text" id="chatbot_admin_jwt_iss" name="chatbot_admin_jwt_iss" class="form-control" value="{$config.chatbot_admin_jwt_iss|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_admin_jwt_aud">Audience (aud)</label>
-                                                    <input type="text" id="chatbot_admin_jwt_aud" name="chatbot_admin_jwt_aud" class="form-control" value="{$config.chatbot_admin_jwt_aud|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_admin_jwt_sub">Subject (sub)</label>
-                                                    <input type="text" id="chatbot_admin_jwt_sub" name="chatbot_admin_jwt_sub" class="form-control" value="{$config.chatbot_admin_jwt_sub|escape}">
-                                                </div>
-                                                <div class="form-group">
-                                                    <label for="chatbot_admin_jwt_ttl">TTL (detik)</label>
-                                                    <input type="number" min="60" max="3600" id="chatbot_admin_jwt_ttl" name="chatbot_admin_jwt_ttl" class="form-control" value="{$config.chatbot_admin_jwt_ttl|escape}">
+                                            <div class="chatbot-auth-block js-admin-auth-block" data-auth-mode="basic">
+                                                <div class="chatbot-auth-title">Basic Authentication</div>
+                                                <div class="chatbot-grid">
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_basic_user">Username</label>
+                                                        <input type="text" id="chatbot_admin_basic_user" name="chatbot_admin_basic_user" class="form-control" value="{$config.chatbot_admin_basic_user|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_basic_pass">Password</label>
+                                                        <input type="password" id="chatbot_admin_basic_pass" name="chatbot_admin_basic_pass" class="form-control" value="{$config.chatbot_admin_basic_pass|escape}">
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <span class="chatbot-helper">Token JWT HS256 untuk admin akan dibuat setiap request admin.</span>
-                                        </div>
-                                    </div>
 
-                                    <div class="chatbot-card chatbot-admin-block js-admin-endpoint-block">
-                                        <h3 class="chatbot-card__title">Payload & Response (Admin)</h3>
-                                        <p class="chatbot-card__subtitle">Override payload & response khusus saat admin membuka chatbot.</p>
-                                        <div class="chatbot-grid">
-                                            <div class="form-group">
-                                                <label for="chatbot_admin_response_key">Response Key</label>
-                                                <input type="text" id="chatbot_admin_response_key" name="chatbot_admin_response_key" class="form-control" value="{$config.chatbot_admin_response_key|escape}" placeholder="output">
-                                                <span class="chatbot-helper">Kosongkan untuk auto-detect.</span>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="chatbot_admin_temperature">Temperature</label>
-                                                <input type="number" step="0.1" min="0" max="2" id="chatbot_admin_temperature" name="chatbot_admin_temperature" class="form-control" value="{$config.chatbot_admin_temperature|escape}">
-                                                <span class="chatbot-helper">Rentang 0–2.</span>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="chatbot_admin_max_tokens">Max Tokens</label>
-                                                <input type="number" min="16" max="4096" id="chatbot_admin_max_tokens" name="chatbot_admin_max_tokens" class="form-control" value="{$config.chatbot_admin_max_tokens|escape}">
-                                            </div>
-                                            <div class="form-group" style="grid-column: 1 / -1;">
-                                                <label for="chatbot_admin_system_prompt">System Prompt</label>
-                                                <textarea id="chatbot_admin_system_prompt" name="chatbot_admin_system_prompt" class="form-control" placeholder="Contoh: Anda adalah asisten support admin.">{$config.chatbot_admin_system_prompt|escape}</textarea>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="chatbot_admin_meta_scope">Metadata Scope Override</label>
-                                                <input type="text" id="chatbot_admin_meta_scope" name="chatbot_admin_meta_scope" class="form-control" value="{$config.chatbot_admin_meta_scope|escape}" placeholder="admin">
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="chatbot_admin_meta_entity_id">Metadata Entity ID Override</label>
-                                                <input type="text" id="chatbot_admin_meta_entity_id" name="chatbot_admin_meta_entity_id" class="form-control" value="{$config.chatbot_admin_meta_entity_id|escape}" placeholder="admin-panel">
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="chatbot_admin_meta_owner_id">Metadata Owner ID Override</label>
-                                                <input type="text" id="chatbot_admin_meta_owner_id" name="chatbot_admin_meta_owner_id" class="form-control" value="{$config.chatbot_admin_meta_owner_id|escape}" placeholder="admin-id">
+                                            <div class="chatbot-auth-block js-admin-auth-block" data-auth-mode="jwt">
+                                                <div class="chatbot-auth-title">JWT (HS256)</div>
+                                                <div class="chatbot-grid">
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_token">Token ID / Subject</label>
+                                                        <input type="text" id="chatbot_admin_jwt_token" name="chatbot_admin_jwt_token" class="form-control" value="{$config.chatbot_admin_jwt_token|escape}" placeholder="token-id">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_secret">Shared Secret</label>
+                                                        <input type="password" id="chatbot_admin_jwt_secret" name="chatbot_admin_jwt_secret" class="form-control" value="{$config.chatbot_admin_jwt_secret|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_iss">Issuer (iss)</label>
+                                                        <input type="text" id="chatbot_admin_jwt_iss" name="chatbot_admin_jwt_iss" class="form-control" value="{$config.chatbot_admin_jwt_iss|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_aud">Audience (aud)</label>
+                                                        <input type="text" id="chatbot_admin_jwt_aud" name="chatbot_admin_jwt_aud" class="form-control" value="{$config.chatbot_admin_jwt_aud|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_sub">Subject (sub)</label>
+                                                        <input type="text" id="chatbot_admin_jwt_sub" name="chatbot_admin_jwt_sub" class="form-control" value="{$config.chatbot_admin_jwt_sub|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_ttl">TTL (detik)</label>
+                                                        <input type="number" min="60" max="3600" id="chatbot_admin_jwt_ttl" name="chatbot_admin_jwt_ttl" class="form-control" value="{$config.chatbot_admin_jwt_ttl|escape}">
+                                                    </div>
+                                                </div>
+                                                <span class="chatbot-helper">Token JWT HS256 untuk admin akan dibuat setiap request admin.</span>
                                             </div>
                                         </div>
                                     </div>
@@ -600,48 +569,6 @@
                                                 <label for="chatbot_handoff_notice">Notice Message</label>
                                                 <textarea id="chatbot_handoff_notice" name="chatbot_handoff_notice" class="form-control" placeholder="Permintaan terkirim. Admin akan segera bergabung.">{$config.chatbot_handoff_notice|escape}</textarea>
                                                 <span class="chatbot-helper">Pesan yang ditampilkan di chat setelah tombol ditekan.</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="chatbot-card">
-                                        <h3 class="chatbot-card__title">Payload & Response (Publik/Customer)</h3>
-                                        <p class="chatbot-card__subtitle">Sesuaikan format payload agar kompatibel dengan integrasi API Chatbot di halaman publik/customer.</p>
-                                        <div class="chatbot-grid">
-                                            <div class="form-group">
-                                                <label for="chatbot_response_key">Response Key</label>
-                                                <input type="text" id="chatbot_response_key" name="chatbot_response_key" class="form-control" value="{$config.chatbot_response_key|escape}" placeholder="output">
-                                                <span class="chatbot-helper">Isi key JSON yang berisi jawaban (misal <code>output</code>). Kosongkan untuk auto-detect.</span>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="chatbot_temperature">Temperature</label>
-                                                <input type="number" step="0.1" min="0" max="2" id="chatbot_temperature" name="chatbot_temperature" class="form-control" value="{$config.chatbot_temperature|escape}">
-                                                <span class="chatbot-helper">Semakin tinggi, jawaban makin variatif. Rentang 0–2.</span>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="chatbot_max_tokens">Max Tokens</label>
-                                                <input type="number" min="16" max="4096" id="chatbot_max_tokens" name="chatbot_max_tokens" class="form-control" value="{$config.chatbot_max_tokens|escape}">
-                                                <span class="chatbot-helper">Batas panjang jawaban yang diizinkan dari provider.</span>
-                                            </div>
-                                            <div class="form-group" style="grid-column: 1 / -1;">
-                                                <label for="chatbot_system_prompt">System Prompt</label>
-                                                <textarea id="chatbot_system_prompt" name="chatbot_system_prompt" class="form-control" placeholder="Contoh: Anda adalah asisten support.">{$config.chatbot_system_prompt|escape}</textarea>
-                                                <span class="chatbot-helper">Prompt sistem opsional yang dikirim bersama payload.</span>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="chatbot_meta_scope">Metadata Scope Override</label>
-                                                <input type="text" id="chatbot_meta_scope" name="chatbot_meta_scope" class="form-control" value="{$config.chatbot_meta_scope|escape}" placeholder="web">
-                                                <span class="chatbot-helper">Kosongkan untuk memakai <code>web</code>.</span>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="chatbot_meta_entity_id">Metadata Entity ID Override</label>
-                                                <input type="text" id="chatbot_meta_entity_id" name="chatbot_meta_entity_id" class="form-control" value="{$config.chatbot_meta_entity_id|escape}" placeholder="{$app_url|escape}">
-                                                <span class="chatbot-helper">Kosongkan untuk memakai hostname halaman.</span>
-                                            </div>
-                                            <div class="form-group">
-                                                <label for="chatbot_meta_owner_id">Metadata Owner ID Override</label>
-                                                <input type="text" id="chatbot_meta_owner_id" name="chatbot_meta_owner_id" class="form-control" value="{$config.chatbot_meta_owner_id|escape}" placeholder="visitor-id">
-                                                <span class="chatbot-helper">Kosongkan untuk memakai visitor id.</span>
                                             </div>
                                         </div>
                                     </div>
