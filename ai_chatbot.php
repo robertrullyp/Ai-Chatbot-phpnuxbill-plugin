@@ -28,6 +28,11 @@ function ai_chatbot_settings()
         return;
     }
 
+    if ($sub_route === 'stream') {
+        ai_chatbot_stream();
+        return;
+    }
+
     if ($sub_route === 'page') {
         $sub_route = 'general';
     }
@@ -182,20 +187,6 @@ function ai_chatbot_section_field_map()
             'chatbot_footer_targets_admin',
             'chatbot_request_timeout',
             'chatbot_status_throttle',
-            'chatbot_response_key',
-            'chatbot_system_prompt',
-            'chatbot_temperature',
-            'chatbot_max_tokens',
-            'chatbot_meta_scope',
-            'chatbot_meta_entity_id',
-            'chatbot_meta_owner_id',
-            'chatbot_admin_response_key',
-            'chatbot_admin_system_prompt',
-            'chatbot_admin_temperature',
-            'chatbot_admin_max_tokens',
-            'chatbot_admin_meta_scope',
-            'chatbot_admin_meta_entity_id',
-            'chatbot_admin_meta_owner_id',
             'chatbot_handoff_enabled',
             'chatbot_handoff_label',
             'chatbot_handoff_timeout',
@@ -786,6 +777,9 @@ if (!defined('AI_CHATBOT_PROXY_TTL')) {
 if (!defined('AI_CHATBOT_CONFIG_TTL')) {
     define('AI_CHATBOT_CONFIG_TTL', 86400);
 }
+if (!defined('AI_CHATBOT_SSE_TTL')) {
+    define('AI_CHATBOT_SSE_TTL', 900);
+}
 
 function ai_chatbot_with_retry_notice($message, $fallback = 'Terjadi kesalahan.')
 {
@@ -876,6 +870,144 @@ function ai_chatbot_load_config_cache($config_key)
     }
 
     return $data['config'];
+}
+
+function ai_chatbot_setting_present($key)
+{
+    if (!is_string($key) || $key === '') {
+        return false;
+    }
+    if (!isset($GLOBALS['config']) || !is_array($GLOBALS['config'])) {
+        return false;
+    }
+    if (!array_key_exists($key, $GLOBALS['config'])) {
+        return false;
+    }
+
+    $value = $GLOBALS['config'][$key];
+    if (is_string($value)) {
+        return trim($value) !== '';
+    }
+
+    return $value !== null;
+}
+
+function ai_chatbot_store_sse_context($session_id, array $transport)
+{
+    ai_chatbot_ensure_session();
+    $session_id = trim((string) $session_id);
+    $token = trim((string) ($transport['token'] ?? ''));
+    $endpoint = trim((string) ($transport['endpoint'] ?? ''));
+
+    if ($session_id === '' || $token === '' || $endpoint === '') {
+        return;
+    }
+
+    if (!isset($_SESSION['ai_chatbot_sse']) || !is_array($_SESSION['ai_chatbot_sse'])) {
+        $_SESSION['ai_chatbot_sse'] = [];
+    }
+
+    $_SESSION['ai_chatbot_sse'][$session_id] = [
+        'token' => $token,
+        'endpoint' => $endpoint,
+        'channel' => isset($transport['channel']) ? (string) $transport['channel'] : '',
+        'expires_at' => time() + AI_CHATBOT_SSE_TTL,
+    ];
+}
+
+function ai_chatbot_get_sse_context($session_id, $token)
+{
+    ai_chatbot_ensure_session();
+    $session_id = trim((string) $session_id);
+    $token = trim((string) $token);
+
+    if ($session_id === '' || $token === '') {
+        return null;
+    }
+
+    if (
+        !isset($_SESSION['ai_chatbot_sse']) ||
+        !is_array($_SESSION['ai_chatbot_sse']) ||
+        !isset($_SESSION['ai_chatbot_sse'][$session_id])
+    ) {
+        return null;
+    }
+
+    $context = $_SESSION['ai_chatbot_sse'][$session_id];
+    $expires_at = isset($context['expires_at']) ? (int) $context['expires_at'] : 0;
+    if ($expires_at > 0 && $expires_at < time()) {
+        unset($_SESSION['ai_chatbot_sse'][$session_id]);
+        return null;
+    }
+
+    $stored_token = (string) ($context['token'] ?? '');
+    if ($stored_token === '' || !hash_equals($stored_token, $token)) {
+        return null;
+    }
+
+    return $context;
+}
+
+function ai_chatbot_clear_sse_context($session_id)
+{
+    ai_chatbot_ensure_session();
+    $session_id = trim((string) $session_id);
+    if ($session_id === '') {
+        return;
+    }
+    if (isset($_SESSION['ai_chatbot_sse'][$session_id])) {
+        unset($_SESSION['ai_chatbot_sse'][$session_id]);
+    }
+}
+
+function ai_chatbot_gateway_base_url($endpoint)
+{
+    $endpoint = trim((string) $endpoint);
+    if ($endpoint === '') {
+        return '';
+    }
+    $parts = parse_url($endpoint);
+    if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+        return '';
+    }
+    $base = $parts['scheme'] . '://' . $parts['host'];
+    if (!empty($parts['port'])) {
+        $base .= ':' . (int) $parts['port'];
+    }
+    return $base;
+}
+
+function ai_chatbot_build_sse_url($base, $endpoint, array $params)
+{
+    $endpoint = trim((string) $endpoint);
+    if ($endpoint === '') {
+        return '';
+    }
+
+    $has_scheme = (bool) preg_match('#^https?://#i', $endpoint);
+    $full = $has_scheme ? $endpoint : rtrim((string) $base, '/') . '/' . ltrim($endpoint, '/');
+
+    $parts = parse_url($full);
+    if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+        return '';
+    }
+
+    $query = [];
+    if (!empty($parts['query'])) {
+        parse_str($parts['query'], $query);
+    }
+    foreach ($params as $key => $value) {
+        if ($value === null || $value === '') {
+            continue;
+        }
+        $query[$key] = $value;
+    }
+
+    $path = $parts['path'] ?? '';
+    $port = isset($parts['port']) ? ':' . (int) $parts['port'] : '';
+    $query_string = $query ? ('?' . http_build_query($query)) : '';
+
+    return $parts['scheme'] . '://' . $parts['host'] . $port . $path . $query_string;
 }
 if (!defined('AI_CHATBOT_AUTOSYNC_REGISTERED')) {
     define('AI_CHATBOT_AUTOSYNC_REGISTERED', true);
@@ -1062,6 +1194,11 @@ function ai_chatbot_collect_proxy_config(array $settings)
         'max_tokens' => isset($settings[$use_admin ? 'chatbot_admin_max_tokens' : 'chatbot_max_tokens'])
             ? (int) $settings[$use_admin ? 'chatbot_admin_max_tokens' : 'chatbot_max_tokens']
             : 512,
+        'explicit_overrides' => [
+            'system_prompt' => ai_chatbot_setting_present($use_admin ? 'chatbot_admin_system_prompt' : 'chatbot_system_prompt'),
+            'temperature' => ai_chatbot_setting_present($use_admin ? 'chatbot_admin_temperature' : 'chatbot_temperature'),
+            'max_tokens' => ai_chatbot_setting_present($use_admin ? 'chatbot_admin_max_tokens' : 'chatbot_max_tokens'),
+        ],
         'meta_overrides' => [
             'scope' => isset($settings[$use_admin ? 'chatbot_admin_meta_scope' : 'chatbot_meta_scope'])
                 ? trim((string) $settings[$use_admin ? 'chatbot_admin_meta_scope' : 'chatbot_meta_scope'])
@@ -1810,6 +1947,131 @@ function ai_chatbot_bootstrap()
     ai_chatbot_json_response($payload);
 }
 
+function ai_chatbot_stream()
+{
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    if ($method !== 'GET') {
+        ai_chatbot_send_error('Method not allowed', 405, [], ['Allow' => 'GET']);
+    }
+
+    ai_chatbot_ensure_session();
+
+    $session_id = isset($_GET['session_id']) ? ai_chatbot_limit_length((string) $_GET['session_id'], 120) : '';
+    $token = isset($_GET['token']) ? ai_chatbot_limit_length((string) $_GET['token'], 200) : '';
+    if ($session_id === '' || $token === '') {
+        http_response_code(400);
+        echo 'Missing session_id or token';
+        exit;
+    }
+
+    $context = ai_chatbot_get_sse_context($session_id, $token);
+    if (!$context) {
+        http_response_code(403);
+        echo 'Invalid or expired stream token';
+        exit;
+    }
+
+    $settings = ai_chatbot_load_config();
+    if (($settings['chatbot_enabled'] ?? '0') !== '1') {
+        http_response_code(403);
+        echo 'Chatbot disabled';
+        exit;
+    }
+
+    $proxy_config = ai_chatbot_collect_proxy_config($settings);
+    $base = ai_chatbot_gateway_base_url($proxy_config['endpoint'] ?? '');
+    $transport_endpoint = $context['endpoint'] ?? '';
+    $sse_url = ai_chatbot_build_sse_url($base, $transport_endpoint, [
+        'session_id' => $session_id,
+        'handoff' => 1,
+        'token' => $token,
+    ]);
+
+    if ($sse_url === '') {
+        http_response_code(500);
+        echo 'Invalid SSE endpoint';
+        exit;
+    }
+
+    @ini_set('output_buffering', 'off');
+    @ini_set('zlib.output_compression', '0');
+    while (ob_get_level() > 0) {
+        @ob_end_flush();
+    }
+
+    ignore_user_abort(true);
+    @set_time_limit(0);
+
+    if (!headers_sent()) {
+        header('Content-Type: text/event-stream; charset=utf-8');
+        header('Cache-Control: no-cache, no-transform');
+        header('Connection: keep-alive');
+        header('X-Accel-Buffering: no');
+    }
+
+    echo "retry: 3000\n\n";
+    @ob_flush();
+    @flush();
+
+    $headers = ['Accept: text/event-stream'];
+    ai_chatbot_append_auth_headers($headers, $proxy_config['auth'] ?? ['type' => 'none']);
+
+    $last_activity = time();
+    $heartbeat_interval = 15;
+
+    $ch = curl_init($sse_url);
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_RETURNTRANSFER => false,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_CONNECTTIMEOUT => 15,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_HEADER => false,
+        CURLOPT_WRITEFUNCTION => static function ($ch, $data) use (&$last_activity) {
+            $last_activity = time();
+            echo $data;
+            @ob_flush();
+            @flush();
+            if (connection_aborted()) {
+                return 0;
+            }
+            return strlen($data);
+        },
+    ]);
+
+    $mh = curl_multi_init();
+    curl_multi_add_handle($mh, $ch);
+    $running = null;
+
+    do {
+        $status = curl_multi_exec($mh, $running);
+        if ($status === CURLM_CALL_MULTI_PERFORM) {
+            continue;
+        }
+
+        if (connection_aborted()) {
+            break;
+        }
+
+        $now = time();
+        if ($now - $last_activity >= $heartbeat_interval) {
+            echo ": ping\n\n";
+            @ob_flush();
+            @flush();
+            $last_activity = $now;
+        }
+
+        if ($running) {
+            curl_multi_select($mh, 1.0);
+        }
+    } while ($running);
+
+    curl_multi_remove_handle($mh, $ch);
+    curl_close($ch);
+    curl_multi_close($mh);
+    exit;
+}
+
 function ai_chatbot_run_proxy()
 {
     global $config;
@@ -1979,6 +2241,34 @@ function ai_chatbot_run_proxy()
         unset($clean_meta['scope'], $clean_meta['entityId'], $clean_meta['entity_id']);
     }
 
+    if (class_exists('User') && User::getID()) {
+        $customer = User::_info();
+        $customer_username = isset($customer['username']) ? trim((string) $customer['username']) : '';
+        $customer_phone = isset($customer['phonenumber']) ? trim((string) $customer['phonenumber']) : '';
+        if ($customer_phone === '' && isset($customer['phone'])) {
+            $customer_phone = trim((string) $customer['phone']);
+        }
+        $customer_name = isset($customer['fullname']) ? trim((string) $customer['fullname']) : '';
+        if ($customer_name === '' && isset($customer['name'])) {
+            $customer_name = trim((string) $customer['name']);
+        }
+
+        if ($customer_username !== '') {
+            $clean_meta['username'] = ai_chatbot_limit_length($customer_username, 120);
+        }
+        if ($customer_phone !== '') {
+            $clean_meta['phone'] = ai_chatbot_limit_length($customer_phone, 120);
+        }
+        if ($customer_name !== '') {
+            $clean_meta['name'] = ai_chatbot_limit_length($customer_name, 160);
+        }
+
+        $preferred_session = $customer_phone !== '' ? $customer_phone : $customer_username;
+        if ($preferred_session !== '') {
+            $clean_meta['sessionId'] = ai_chatbot_limit_length($preferred_session, 120);
+        }
+    }
+
     $session_id = '';
     if (!empty($clean_meta['sessionId'])) {
         $session_id = trim((string) $clean_meta['sessionId']);
@@ -2054,6 +2344,9 @@ function ai_chatbot_run_proxy()
     $handoff_timeout = 0;
     if ($handoff_request) {
         $handoff_route = $route !== '' ? $route : 'handoff';
+        if (in_array($handoff_route, ['handoff_off', 'handoff_timeout', 'handoff-off'], true)) {
+            ai_chatbot_clear_sse_context($session_id);
+        }
         $handoff_timeout = isset($payload['handoff_timeout_sec']) ? (int) $payload['handoff_timeout_sec'] : 0;
         if ($is_gateway_endpoint) {
             if ($handoff_timeout <= 0) {
@@ -2112,7 +2405,18 @@ function ai_chatbot_run_proxy()
         $payload['inputType'] = $input_type;
         $payload['attachments'] = $attachments;
 
+        $explicit_overrides = isset($proxy_config['explicit_overrides']) && is_array($proxy_config['explicit_overrides'])
+            ? $proxy_config['explicit_overrides']
+            : [];
+        $send_system = !$is_gateway_endpoint || !empty($explicit_overrides['system_prompt']);
+        $send_temperature = !$is_gateway_endpoint || !empty($explicit_overrides['temperature']);
+        $send_max_tokens = !$is_gateway_endpoint || !empty($explicit_overrides['max_tokens']);
+
         $system_prompt = trim((string) ($proxy_config['system_prompt'] ?? ''));
+        if (!$send_system) {
+            $system_prompt = '';
+        }
+
         $temperature = isset($proxy_config['temperature']) ? (float) $proxy_config['temperature'] : 0.7;
         if ($temperature < 0) {
             $temperature = 0;
@@ -2156,10 +2460,7 @@ function ai_chatbot_run_proxy()
         $payload['body'] = $body_payload;
 
         $forward_body = [
-            'system' => $system_prompt,
             'messages' => $messages,
-            'temperature' => $temperature,
-            'max_tokens' => $max_tokens,
             'chatInput' => $payload['chatInput'],
             'text' => $payload['chatInput'],
             'inputType' => $input_type,
@@ -2174,6 +2475,15 @@ function ai_chatbot_run_proxy()
             'timestamp' => time(),
             'proxy_id' => $proxy_id,
         ];
+        if ($system_prompt !== '' && $send_system) {
+            $forward_body['system'] = $system_prompt;
+        }
+        if ($send_temperature) {
+            $forward_body['temperature'] = $temperature;
+        }
+        if ($send_max_tokens) {
+            $forward_body['max_tokens'] = $max_tokens;
+        }
 
         if ($session_id !== '') {
             $forward_body['session_id'] = $session_id;
@@ -2270,6 +2580,18 @@ function ai_chatbot_run_proxy()
         $decoded = ['response' => is_string($body) ? trim($body) : ''];
     }
 
+    if (
+        isset($decoded['transport']) &&
+        is_array($decoded['transport']) &&
+        isset($decoded['transport']['mode']) &&
+        strtolower((string) $decoded['transport']['mode']) === 'sse'
+    ) {
+        if (!isset($decoded['transport']['session_id']) || $decoded['transport']['session_id'] === '') {
+            $decoded['transport']['session_id'] = $session_id;
+        }
+        ai_chatbot_store_sse_context($session_id, $decoded['transport']);
+    }
+
     if (!array_key_exists('success', $decoded)) {
         $decoded['success'] = true;
     }
@@ -2283,6 +2605,46 @@ function ai_chatbot_run_proxy()
     }
 
     ai_chatbot_json_response($decoded);
+}
+
+function ai_chatbot_plugin_install()
+{
+    $settings = ai_chatbot_load_config();
+    $public_targets = ai_chatbot_parse_footer_targets($settings['chatbot_footer_targets'] ?? '');
+    $admin_targets = ai_chatbot_parse_footer_targets($settings['chatbot_footer_targets_admin'] ?? '');
+    $targets = array_values(array_unique(array_merge($public_targets, $admin_targets)));
+
+    ai_chatbot_sync_footer_includes(($settings['chatbot_enabled'] ?? '0') === '1', $targets);
+}
+
+function ai_chatbot_plugin_uninstall($purge_config = true)
+{
+    $settings = ai_chatbot_load_config();
+    $public_targets = ai_chatbot_parse_footer_targets($settings['chatbot_footer_targets'] ?? '');
+    $admin_targets = ai_chatbot_parse_footer_targets($settings['chatbot_footer_targets_admin'] ?? '');
+    $targets = array_values(array_unique(array_merge($public_targets, $admin_targets)));
+
+    ai_chatbot_sync_footer_includes(false, $targets);
+
+    if ($purge_config) {
+        $keys = ai_chatbot_setting_keys();
+        if (!empty($keys)) {
+            ORM::for_table('tbl_appconfig')->where_in('setting', $keys)->delete_many();
+        }
+        if (isset($GLOBALS['config']) && is_array($GLOBALS['config'])) {
+            foreach ($keys as $key) {
+                unset($GLOBALS['config'][$key]);
+            }
+        }
+    }
+
+    $cache_base = $GLOBALS['CACHE_PATH'] ?? null;
+    if ($cache_base) {
+        $cache_dir = rtrim($cache_base, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'ai_chatbot';
+        if (is_dir($cache_dir) && class_exists('File')) {
+            @File::deleteFolder($cache_dir . DIRECTORY_SEPARATOR);
+        }
+    }
 }
 
 
