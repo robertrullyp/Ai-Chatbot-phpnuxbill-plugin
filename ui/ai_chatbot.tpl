@@ -1271,6 +1271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const contextParam = pageContext ? '&context=' + encodeURIComponent(pageContext) : '';
     const bootstrapUrl = "{$app_url|escape:'javascript'}?_route=plugin/ai_chatbot_settings/bootstrap" + contextParam;
     const statusUrl = "{$app_url|escape:'javascript'}?_route=plugin/ai_chatbot_settings/status" + contextParam;
+    const streamUrl = "{$app_url|escape:'javascript'}?_route=plugin/ai_chatbot_settings/stream" + contextParam;
     let chatConfig = {};
     let history = [];
     let csrfToken = null;
@@ -1281,6 +1282,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let handoffStorageKey = null;
     let baseStatusState = 'checking';
     let baseStatusLabel = 'Checking...';
+    let sseSource = null;
+    let sseInfo = null;
 
     const visitorIdKey = 'ai_chatbot_visitor_id';
     const sessionIdKey = 'ai_chatbot_session_id';
@@ -1368,6 +1371,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 root.dataset.handoffActive = '0';
             }
             updateHandoffUI();
+            stopSse(true);
             return;
         }
         handoffActive = Boolean(isActive);
@@ -1378,6 +1382,9 @@ document.addEventListener('DOMContentLoaded', () => {
             handoffButton.classList.toggle('is-active', handoffActive);
         }
         updateHandoffUI();
+        if (!handoffActive) {
+            stopSse(true);
+        }
         if (handoffStorageKey) {
             try {
                 if (handoffActive) {
@@ -1402,6 +1409,107 @@ document.addEventListener('DOMContentLoaded', () => {
             handoffButton.textContent = label;
             handoffButton.setAttribute('aria-label', label);
         }
+    }
+
+    function stopSse(clearInfo = false) {
+        if (sseSource) {
+            sseSource.close();
+            sseSource = null;
+        }
+        if (clearInfo) {
+            sseInfo = null;
+        }
+    }
+
+    function parseJsonSafe(payload) {
+        if (!payload) {
+            return null;
+        }
+        try {
+            return JSON.parse(payload);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    function handleSseMessage(event) {
+        const payload = parseJsonSafe(event.data);
+        if (!payload || typeof payload !== 'object') {
+            return;
+        }
+        if (payload.event === 'handoff_off') {
+            setHandoffActive(false);
+            stopSse(true);
+            return;
+        }
+        const text = payload.body || payload.text || payload.message || payload.chatInput;
+        if (!text) {
+            return;
+        }
+        addMessage('bot', text);
+        history.push({ sender: 'bot', text: text });
+        saveHistory();
+    }
+
+    function handleSseHandoffOff() {
+        setHandoffActive(false);
+        stopSse(true);
+    }
+
+    function handleSseError() {
+        if (!sseSource) {
+            return;
+        }
+        if (sseSource.readyState === EventSource.CLOSED) {
+            stopSse(false);
+        }
+    }
+
+    function startSse(transport) {
+        if (!transport || typeof transport !== 'object') {
+            return;
+        }
+        if (!handoffEnabled || !handoffActive) {
+            return;
+        }
+        const mode = (transport.mode || '').toString().toLowerCase();
+        if (mode !== 'sse') {
+            return;
+        }
+        const token = transport.token ? String(transport.token) : '';
+        const sessionId = transport.session_id ? String(transport.session_id) : (sessionToken || '');
+        if (!token || !sessionId) {
+            return;
+        }
+        if (sseInfo && sseInfo.token === token && sseInfo.sessionId === sessionId && sseSource) {
+            return;
+        }
+        sseInfo = { token: token, sessionId: sessionId };
+        const url = streamUrl + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token);
+        stopSse(false);
+        try {
+            sseSource = new EventSource(url);
+        } catch (error) {
+            sseSource = null;
+            return;
+        }
+        sseSource.addEventListener('message', handleSseMessage);
+        sseSource.addEventListener('handoff_off', handleSseHandoffOff);
+        sseSource.addEventListener('error', handleSseError);
+    }
+
+    function syncTransportFromResponse(data) {
+        if (!data || typeof data !== 'object') {
+            return;
+        }
+        if (!handoffEnabled || !handoffActive) {
+            return;
+        }
+        const transport = data.transport;
+        if (!transport || typeof transport !== 'object') {
+            return;
+        }
+        startSse(transport);
     }
 
     function syncHandoffStateFromResponse(data) {
@@ -2308,17 +2416,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (typingIndicator && typingIndicator.parentNode) {
                 const delay = typingDelayForText(finalText);
-                if (delay > 0) {
-                    await new Promise((resolve) => setTimeout(resolve, delay));
-                }
-                typingIndicator.remove();
+            if (delay > 0) {
+                await new Promise((resolve) => setTimeout(resolve, delay));
             }
+            typingIndicator.remove();
+        }
 
-            syncHandoffStateFromResponse(data);
+        syncHandoffStateFromResponse(data);
+        syncTransportFromResponse(data);
 
-            addMessage('bot', finalText);
-            history.push({ sender: 'bot', text: finalText });
-            saveHistory();
+        addMessage('bot', finalText);
+        history.push({ sender: 'bot', text: finalText });
+        saveHistory();
         } catch (error) {
             if (typingIndicator && typingIndicator.parentNode) {
                 typingIndicator.remove();
@@ -2415,6 +2524,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 addMessage('bot', 'Error: ' + errorMessage);
             } else {
                 syncHandoffStateFromResponse(data);
+                syncTransportFromResponse(data);
                 const handoffResponse = extractBotMessage(data);
                 if (handoffResponse) {
                     addMessage('bot', handoffResponse);
@@ -2440,7 +2550,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const requestId = uuidv4();
             const requestPayload = {
                 route: 'handoff_off',
-                session_id: sessionToken
+                session_id: sessionToken,
+                text: 'Sesi handoff diakhiri oleh user.'
             };
 
             const requestMeta = {
