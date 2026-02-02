@@ -456,18 +456,6 @@
                                     </div>
 
                                     <div class="chatbot-card chatbot-admin-block js-admin-endpoint-block">
-                                        <h3 class="chatbot-card__title">Endpoint Admin</h3>
-                                        <p class="chatbot-card__subtitle">Hanya aktif ketika Enable Endpoint Admin = Yes.</p>
-                                        <div class="chatbot-grid">
-                                            <div class="form-group">
-                                                <label for="chatbot_endpoint_admin">Endpoint Admin</label>
-                                                <input type="url" id="chatbot_endpoint_admin" name="chatbot_endpoint_admin" class="form-control" value="{$config.chatbot_endpoint_admin|escape}" placeholder="https://admin.ai.endpoint/chat">
-                                                <span class="chatbot-helper">Kosongkan untuk memakai endpoint publik (autentikasi & payload admin tetap berlaku).</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="chatbot-card chatbot-admin-block js-admin-endpoint-block">
                                         <h3 class="chatbot-card__title">Metode Autentikasi (Admin)</h3>
                                         <p class="chatbot-card__subtitle">Autentikasi khusus saat admin memakai endpoint admin.</p>
                                         <div class="chatbot-grid">
@@ -716,6 +704,9 @@
                                                 <option value="minimal" {if $config.chatbot_theme_preset == 'minimal'}selected{/if}>Minimal</option>
                                                 <option value="neon" {if $config.chatbot_theme_preset == 'neon'}selected{/if}>Neon</option>
                                                 <option value="forest" {if $config.chatbot_theme_preset == 'forest'}selected{/if}>Forest</option>
+                                                <option value="modern" {if $config.chatbot_theme_preset == 'modern'}selected{/if}>Modern</option>
+                                                <option value="aesthetic" {if $config.chatbot_theme_preset == 'aesthetic'}selected{/if}>Aesthetic</option>
+                                                <option value="futuristic" {if $config.chatbot_theme_preset == 'futuristic'}selected{/if}>Futuristic</option>
                                             </select>
                                             <span class="chatbot-helper">Mengubah preset akan mengisi nilai di bawah. Ubah manual => preset menjadi Custom.</span>
                                         </div>
@@ -1578,6 +1569,96 @@
             chatbot_bubble_line_height: '1.45',
             chatbot_bubble_max_width: '80',
             chatbot_message_font_family: '\"IBM Plex Sans\", \"Segoe UI\", sans-serif'
+        },
+        modern: {
+            chatbot_header_bg: 'linear-gradient(135deg, #111827, #1f2937)',
+            chatbot_header_text: '#f9fafb',
+            chatbot_launcher_bg: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+            chatbot_launcher_text: '#ffffff',
+            chatbot_send_bg: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+            chatbot_send_text: '#ffffff',
+            chatbot_frame_bg: '#ffffff',
+            chatbot_messages_bg: '#f8fafc',
+            chatbot_input_bg: '#ffffff',
+            chatbot_input_text: '#0f172a',
+            chatbot_input_border: '#cbd5f5',
+            chatbot_input_area_bg: 'rgba(255, 255, 255, 0.94)',
+            chatbot_input_area_padding_x: '14',
+            chatbot_input_area_padding_y: '12',
+            chatbot_input_area_blur: '8',
+            chatbot_bubble_bot_bg: '#ffffff',
+            chatbot_bubble_bot_text: '#0f172a',
+            chatbot_bubble_bot_border: '#e2e8f0',
+            chatbot_bubble_user_bg: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+            chatbot_bubble_user_text: '#ffffff',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '14',
+            chatbot_bubble_padding_x: '14',
+            chatbot_bubble_padding_y: '10',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.45',
+            chatbot_bubble_max_width: '80',
+            chatbot_message_font_family: '\"Outfit\", \"Segoe UI\", sans-serif'
+        },
+        aesthetic: {
+            chatbot_header_bg: 'linear-gradient(135deg, #f472b6, #a855f7)',
+            chatbot_header_text: '#ffffff',
+            chatbot_launcher_bg: 'linear-gradient(135deg, #f472b6, #ec4899)',
+            chatbot_launcher_text: '#ffffff',
+            chatbot_send_bg: 'linear-gradient(135deg, #a855f7, #ec4899)',
+            chatbot_send_text: '#ffffff',
+            chatbot_frame_bg: '#fff7ed',
+            chatbot_messages_bg: '#fdf2f8',
+            chatbot_input_bg: '#ffffff',
+            chatbot_input_text: '#4b1b3a',
+            chatbot_input_border: '#f9a8d4',
+            chatbot_input_area_bg: 'rgba(255, 255, 255, 0.95)',
+            chatbot_input_area_padding_x: '14',
+            chatbot_input_area_padding_y: '12',
+            chatbot_input_area_blur: '6',
+            chatbot_bubble_bot_bg: '#ffffff',
+            chatbot_bubble_bot_text: '#4b1b3a',
+            chatbot_bubble_bot_border: '#fbcfe8',
+            chatbot_bubble_user_bg: 'linear-gradient(135deg, #f472b6, #a855f7)',
+            chatbot_bubble_user_text: '#ffffff',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '16',
+            chatbot_bubble_padding_x: '14',
+            chatbot_bubble_padding_y: '10',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.45',
+            chatbot_bubble_max_width: '80',
+            chatbot_message_font_family: '\"Plus Jakarta Sans\", \"Segoe UI\", sans-serif'
+        },
+        futuristic: {
+            chatbot_header_bg: 'linear-gradient(135deg, #0b1020, #111827)',
+            chatbot_header_text: '#e2e8f0',
+            chatbot_launcher_bg: 'linear-gradient(135deg, #06b6d4, #22d3ee)',
+            chatbot_launcher_text: '#0b1020',
+            chatbot_send_bg: 'linear-gradient(135deg, #22d3ee, #38bdf8)',
+            chatbot_send_text: '#0b1020',
+            chatbot_frame_bg: '#0b1020',
+            chatbot_messages_bg: 'rgba(2, 6, 23, 0.92)',
+            chatbot_input_bg: '#111827',
+            chatbot_input_text: '#e2e8f0',
+            chatbot_input_border: '#1f2937',
+            chatbot_input_area_bg: 'rgba(15, 23, 42, 0.85)',
+            chatbot_input_area_padding_x: '14',
+            chatbot_input_area_padding_y: '12',
+            chatbot_input_area_blur: '10',
+            chatbot_bubble_bot_bg: '#111827',
+            chatbot_bubble_bot_text: '#e2e8f0',
+            chatbot_bubble_bot_border: '#1f2937',
+            chatbot_bubble_user_bg: 'linear-gradient(135deg, #22d3ee, #38bdf8)',
+            chatbot_bubble_user_text: '#0b1020',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '14',
+            chatbot_bubble_padding_x: '14',
+            chatbot_bubble_padding_y: '10',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.5',
+            chatbot_bubble_max_width: '80',
+            chatbot_message_font_family: '\"Space Grotesk\", \"Segoe UI\", sans-serif'
         }
     };
 
