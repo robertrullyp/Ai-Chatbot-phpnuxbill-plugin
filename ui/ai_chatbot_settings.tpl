@@ -315,7 +315,7 @@
                             </div>
                         </div>
                         <p class="chatbot-summary__description">
-                            Kelola status chatbot, pengalaman pengguna, histori percakapan, serta metode autentikasi yang digunakan. Endpoint admin (opsional) akan menggantikan endpoint publik saat admin membuka chatbot.
+
                         </p>
                     </div>
 
