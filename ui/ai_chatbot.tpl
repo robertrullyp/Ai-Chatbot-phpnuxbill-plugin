@@ -2471,6 +2471,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (text === '' || !chatConfig.proxy_url) {
             return;
         }
+        if (handoffInFlight) {
+            return;
+        }
         const cleanedText = rawText.replace(/\r\n/g, '\n').trim();
         const isHandoffMode = handoffEnabled && handoffActive;
 
@@ -2597,6 +2600,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (handoffButton) {
             handoffButton.disabled = true;
         }
+        input.disabled = true;
+        sendButton.disabled = true;
 
         if (handoffNotice) {
             addMessage('bot', handoffNotice);
@@ -2665,6 +2670,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (handoffButton) {
                 handoffButton.disabled = false;
             }
+            input.disabled = false;
+            sendButton.disabled = false;
         }
     }
 
