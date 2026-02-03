@@ -1280,6 +1280,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let handoffInFlight = false;
     let handoffActive = false;
     let handoffStorageKey = null;
+    let handoffExpiresAt = 0;
+    let handoffExpiryTimer = null;
+    let lastInboundMessage = null;
     let baseStatusState = 'checking';
     let baseStatusLabel = 'Checking...';
     let sseSource = null;
@@ -1364,7 +1367,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sendButton.setAttribute('aria-busy', isLoading ? 'true' : 'false');
     }
 
-    function setHandoffActive(isActive) {
+    function setHandoffActive(isActive, options = {}) {
         if (!handoffEnabled) {
             handoffActive = false;
             if (root) {
@@ -1372,6 +1375,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             updateHandoffUI();
             stopSse(true);
+            handoffExpiresAt = 0;
+            lastInboundMessage = null;
+            clearHandoffStorage();
+            clearHandoffExpiryTimer();
             return;
         }
         handoffActive = Boolean(isActive);
@@ -1384,18 +1391,21 @@ document.addEventListener('DOMContentLoaded', () => {
         updateHandoffUI();
         if (!handoffActive) {
             stopSse(true);
+            handoffExpiresAt = 0;
+            lastInboundMessage = null;
+            clearHandoffStorage();
+            clearHandoffExpiryTimer();
+            return;
         }
-        if (handoffStorageKey) {
-            try {
-                if (handoffActive) {
-                    localStorage.setItem(handoffStorageKey, '1');
-                } else {
-                    localStorage.removeItem(handoffStorageKey);
-                }
-            } catch (error) {
-                // ignore storage errors
-            }
+
+        const expiresAt = options && typeof options.expiresAt === 'number' ? options.expiresAt : 0;
+        if (expiresAt > 0) {
+            handoffExpiresAt = expiresAt;
+        } else {
+            refreshHandoffExpiry();
         }
+        persistHandoffState();
+        scheduleHandoffExpiryCheck();
     }
 
     function updateHandoffUI() {
@@ -1421,6 +1431,85 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function persistHandoffState() {
+        if (!handoffStorageKey) {
+            return;
+        }
+        try {
+            if (!handoffActive) {
+                localStorage.removeItem(handoffStorageKey);
+                return;
+            }
+            const payload = {
+                active: 1,
+                expires_at: handoffExpiresAt || (Date.now() + (handoffTimeout * 1000))
+            };
+            localStorage.setItem(handoffStorageKey, JSON.stringify(payload));
+        } catch (error) {
+            // ignore storage errors
+        }
+    }
+
+    function clearHandoffStorage() {
+        if (!handoffStorageKey) {
+            return;
+        }
+        try {
+            localStorage.removeItem(handoffStorageKey);
+        } catch (error) {
+            // ignore storage errors
+        }
+    }
+
+    function refreshHandoffExpiry() {
+        if (!handoffActive) {
+            return;
+        }
+        const ttlMs = Math.max(0, handoffTimeout * 1000);
+        handoffExpiresAt = Date.now() + ttlMs;
+        persistHandoffState();
+    }
+
+    function clearHandoffExpiryTimer() {
+        if (handoffExpiryTimer) {
+            clearInterval(handoffExpiryTimer);
+            handoffExpiryTimer = null;
+        }
+    }
+
+    function scheduleHandoffExpiryCheck() {
+        if (handoffExpiryTimer) {
+            return;
+        }
+        handoffExpiryTimer = setInterval(() => {
+            if (!handoffActive || !handoffExpiresAt) {
+                return;
+            }
+            if (Date.now() >= handoffExpiresAt) {
+                setHandoffActive(false);
+                sendHandoffOff();
+            }
+        }, 30000);
+    }
+
+    function trackInboundMessage(text) {
+        if (!text) {
+            return;
+        }
+        lastInboundMessage = { text: text, at: Date.now() };
+        refreshHandoffExpiry();
+    }
+
+    function isDuplicateInbound(text) {
+        if (!text || !lastInboundMessage) {
+            return false;
+        }
+        if (lastInboundMessage.text !== text) {
+            return false;
+        }
+        return (Date.now() - lastInboundMessage.at) < 4000;
+    }
+
     function parseJsonSafe(payload) {
         if (!payload) {
             return null;
@@ -1437,18 +1526,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!payload || typeof payload !== 'object') {
             return;
         }
+        if (!handoffActive) {
+            return;
+        }
         if (payload.event === 'handoff_off') {
             setHandoffActive(false);
             stopSse(true);
+            return;
+        }
+        if (payload.direction && payload.direction !== 'inbound') {
             return;
         }
         const text = payload.body || payload.text || payload.message || payload.chatInput;
         if (!text) {
             return;
         }
+        if (isDuplicateInbound(text)) {
+            return;
+        }
         addMessage('bot', text);
         history.push({ sender: 'bot', text: text });
         saveHistory();
+        trackInboundMessage(text);
     }
 
     function handleSseHandoffOff() {
@@ -1520,6 +1619,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!info || typeof info !== 'object') {
             return;
         }
+        if (info.off) {
+            setHandoffActive(false);
+            return;
+        }
         if (info.timeout) {
             const wasActive = handoffActive;
             setHandoffActive(false);
@@ -1528,6 +1631,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else if (info.bound) {
             setHandoffActive(true);
+            refreshHandoffExpiry();
         }
     }
 
@@ -1868,8 +1972,26 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try {
-            if (localStorage.getItem(handoffStorageKey) === '1') {
+            const raw = localStorage.getItem(handoffStorageKey);
+            if (!raw) {
+                return;
+            }
+            if (raw === '1') {
                 setHandoffActive(true);
+                return;
+            }
+            let parsed = null;
+            try {
+                parsed = JSON.parse(raw);
+            } catch (error) {
+                parsed = null;
+            }
+            const expiresAt = parsed && typeof parsed.expires_at === 'number' ? parsed.expires_at : 0;
+            if (expiresAt > 0 && expiresAt > Date.now()) {
+                setHandoffActive(true, { expiresAt: expiresAt });
+                scheduleHandoffExpiryCheck();
+            } else {
+                clearHandoffStorage();
             }
         } catch (error) {
             // ignore storage errors
@@ -2308,6 +2430,41 @@ document.addEventListener('DOMContentLoaded', () => {
         return '';
     }
 
+    async function postProxy(payload) {
+        let attempt = 0;
+        while (attempt < 2) {
+            attempt += 1;
+            if (csrfToken) {
+                payload.csrf_token = csrfToken;
+            }
+            const response = await fetch(chatConfig.proxy_url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+            let data = null;
+            try {
+                data = await response.json();
+            } catch (parseError) {
+                data = null;
+            }
+
+            if (data && typeof data === 'object' && data !== null && data.csrf_token) {
+                csrfToken = data.csrf_token;
+                delete data.csrf_token;
+            }
+            if (data && data.proxy_id) {
+                chatConfig.proxy_id = data.proxy_id;
+            }
+            if (response.status === 419 && data && data.csrf_token && attempt < 2) {
+                continue;
+            }
+            return { response: response, data: data };
+        }
+        return { response: null, data: null };
+    }
+
     async function sendMessage() {
         const rawText = input.value;
         const text = rawText.trim();
@@ -2327,6 +2484,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setSendLoading(true);
 
         const typingIndicator = typingMode === 'wpm' ? addMessage('bot', '', true) : null;
+        if (isHandoffMode) {
+            refreshHandoffExpiry();
+        }
 
         try {
             const requestId = uuidv4();
@@ -2375,34 +2535,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 meta: requestMeta
             };
 
-            if (csrfToken) {
-                payload.csrf_token = csrfToken;
-            }
+            const { response, data } = await postProxy(payload);
 
-            const response = await fetch(chatConfig.proxy_url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify(payload)
-            });
-
-            let data = null;
-            try {
-                data = await response.json();
-            } catch (parseError) {
-                data = null;
-            }
-
-            if (data && typeof data === 'object' && data !== null && data.csrf_token) {
-                csrfToken = data.csrf_token;
-                delete data.csrf_token;
-            }
-
-            if (!response.ok || !data) {
+            if (!response || !response.ok || !data) {
                 const errorMessage = data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.';
-                if (data && data.proxy_id) {
-                    chatConfig.proxy_id = data.proxy_id;
-                }
                 if (typingIndicator && typingIndicator.parentNode) {
                     typingIndicator.remove();
                 }
@@ -2411,23 +2547,33 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const botResponse = extractBotMessage(data);
-            const finalText = (typeof botResponse === 'string' ? botResponse : '')
-                .trim() || 'Maaf, saya tidak dapat memproses permintaan tersebut.';
+            const finalText = (typeof botResponse === 'string' ? botResponse : '').trim();
+            const handoffInfo = data && typeof data === 'object' ? data.handoff : null;
+            const isForwarded = isHandoffMode && handoffInfo && handoffInfo.forwarded;
 
             if (typingIndicator && typingIndicator.parentNode) {
                 const delay = typingDelayForText(finalText);
-            if (delay > 0) {
-                await new Promise((resolve) => setTimeout(resolve, delay));
+                if (delay > 0) {
+                    await new Promise((resolve) => setTimeout(resolve, delay));
+                }
+                typingIndicator.remove();
             }
-            typingIndicator.remove();
-        }
 
-        syncHandoffStateFromResponse(data);
-        syncTransportFromResponse(data);
+            syncHandoffStateFromResponse(data);
+            syncTransportFromResponse(data);
 
-        addMessage('bot', finalText);
-        history.push({ sender: 'bot', text: finalText });
-        saveHistory();
+            if (!isForwarded) {
+                const safeText = finalText !== '' ? finalText : 'Maaf, saya tidak dapat memproses permintaan tersebut.';
+                const isDup = handoffInfo && handoffInfo.from_admin ? isDuplicateInbound(safeText) : false;
+                if (!isDup) {
+                    addMessage('bot', safeText);
+                    history.push({ sender: 'bot', text: safeText });
+                    saveHistory();
+                    if (handoffInfo && handoffInfo.from_admin) {
+                        trackInboundMessage(safeText);
+                    }
+                }
+            }
         } catch (error) {
             if (typingIndicator && typingIndicator.parentNode) {
                 typingIndicator.remove();
@@ -2496,40 +2642,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 meta: requestMeta
             };
 
-            if (csrfToken) {
-                payload.csrf_token = csrfToken;
-            }
+            const { response, data } = await postProxy(payload);
 
-            const response = await fetch(chatConfig.proxy_url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify(payload)
-            });
-
-            let data = null;
-            try {
-                data = await response.json();
-            } catch (parseError) {
-                data = null;
-            }
-
-            if (data && typeof data === 'object' && data !== null && data.csrf_token) {
-                csrfToken = data.csrf_token;
-                delete data.csrf_token;
-            }
-
-            if (!response.ok || !data) {
+            if (!response || !response.ok || !data) {
                 const errorMessage = data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.';
                 addMessage('bot', 'Error: ' + errorMessage);
             } else {
                 syncHandoffStateFromResponse(data);
                 syncTransportFromResponse(data);
                 const handoffResponse = extractBotMessage(data);
-                if (handoffResponse) {
+                if (handoffResponse && !isDuplicateInbound(handoffResponse)) {
                     addMessage('bot', handoffResponse);
                     history.push({ sender: 'bot', text: handoffResponse });
                     saveHistory();
+                    trackInboundMessage(handoffResponse);
                 }
             }
         } catch (error) {
@@ -2570,24 +2696,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 meta: requestMeta
             };
 
-            if (csrfToken) {
-                payload.csrf_token = csrfToken;
-            }
-
-            const response = await fetch(chatConfig.proxy_url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify(payload)
-            });
-
-            let data = null;
-            try {
-                data = await response.json();
-            } catch (parseError) {
-                data = null;
-            }
-
+            const { data } = await postProxy(payload);
             if (data && typeof data === 'object' && data !== null && data.csrf_token) {
                 csrfToken = data.csrf_token;
             }
