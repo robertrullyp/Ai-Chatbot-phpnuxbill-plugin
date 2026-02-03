@@ -2107,7 +2107,7 @@ function ai_chatbot_run_proxy()
     if (array_key_exists('handoff', $payload)) {
         $handoff_flag = filter_var($payload['handoff'], FILTER_VALIDATE_BOOLEAN);
     }
-    $handoff_request = in_array($route, ['handoff', 'handoff_off', 'handoff_timeout', 'admin'], true) || $handoff_flag;
+    $handoff_request = in_array($route, ['handoff', 'handoff_off', 'handoff_timeout', 'handoff_status', 'handoff-status', 'handoff_state', 'handoff-state', 'admin'], true) || $handoff_flag;
 
     $chat_input = isset($payload['chatInput']) ? trim((string) $payload['chatInput']) : '';
     if ($chat_input === '' && !$handoff_request) {
