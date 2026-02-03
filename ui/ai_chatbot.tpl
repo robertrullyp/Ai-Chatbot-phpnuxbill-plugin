@@ -528,6 +528,31 @@
         position: relative;
     }
 
+    .chatbot-message-status {
+        display: block;
+        margin-top: 6px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--chatbot-muted);
+        letter-spacing: 0.01em;
+    }
+
+    .chatbot-message-status[data-status="sending"] {
+        color: rgba(15, 23, 42, 0.55);
+    }
+
+    .chatbot-message-status[data-status="failed"] {
+        color: #ef4444;
+    }
+
+    .chatbot-message.user .chatbot-message-status {
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+    .chatbot-message.user .chatbot-message-status[data-status="failed"] {
+        color: #fecaca;
+    }
+
     .chatbot-copy-btn {
         position: absolute;
         left: 0;
@@ -1279,10 +1304,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastStatusCheckedAt = 0;
     let handoffInFlight = false;
     let handoffActive = false;
+    let handoffBound = false;
+    let handoffQueue = [];
+    let handoffQueueActive = false;
+    let handoffQueueSeq = 0;
     let handoffStorageKey = null;
     let handoffExpiresAt = 0;
     let handoffExpiryTimer = null;
     let lastInboundMessage = null;
+    const inboundIdCache = new Set();
+    const inboundIdQueue = [];
+    const inboundIdLimit = 120;
     let baseStatusState = 'checking';
     let baseStatusLabel = 'Checking...';
     let sseSource = null;
@@ -1370,6 +1402,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setHandoffActive(isActive, options = {}) {
         if (!handoffEnabled) {
             handoffActive = false;
+            handoffBound = false;
             if (root) {
                 root.dataset.handoffActive = '0';
             }
@@ -1382,6 +1415,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         handoffActive = Boolean(isActive);
+        if (options && typeof options.bound === 'boolean') {
+            handoffBound = options.bound;
+        }
         if (root) {
             root.dataset.handoffActive = handoffActive ? '1' : '0';
         }
@@ -1393,6 +1429,9 @@ document.addEventListener('DOMContentLoaded', () => {
             stopSse(true);
             handoffExpiresAt = 0;
             lastInboundMessage = null;
+            handoffBound = false;
+            handoffQueue = [];
+            handoffQueueActive = false;
             clearHandoffStorage();
             clearHandoffExpiryTimer();
             return;
@@ -1410,7 +1449,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateHandoffUI() {
         if (handoffActive) {
-            applyStatus('handoff', 'Admin Terhubung');
+            if (handoffBound) {
+                applyStatus('handoff', 'Admin Terhubung');
+            } else {
+                applyStatus('checking', 'Menunggu Admin');
+            }
         } else {
             applyStatus(baseStatusState, baseStatusLabel);
         }
@@ -1492,16 +1535,79 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 30000);
     }
 
-    function trackInboundMessage(text) {
+    function rememberInboundId(id) {
+        if (!id) {
+            return;
+        }
+        const key = String(id);
+        if (inboundIdCache.has(key)) {
+            return;
+        }
+        inboundIdCache.add(key);
+        inboundIdQueue.push(key);
+        if (inboundIdQueue.length > inboundIdLimit) {
+            const removed = inboundIdQueue.shift();
+            if (removed) {
+                inboundIdCache.delete(removed);
+            }
+        }
+    }
+
+    function hasInboundId(id) {
+        if (!id) {
+            return false;
+        }
+        return inboundIdCache.has(String(id));
+    }
+
+    function setMessageStatus(messageEl, state, label) {
+        if (!messageEl) {
+            return;
+        }
+        const contentEl = messageEl.querySelector('.chatbot-message-content');
+        if (!contentEl) {
+            return;
+        }
+        let statusEl = contentEl.querySelector('.chatbot-message-status');
+        if (!statusEl) {
+            statusEl = document.createElement('span');
+            statusEl.className = 'chatbot-message-status';
+            contentEl.appendChild(statusEl);
+        }
+        statusEl.textContent = label;
+        if (state) {
+            statusEl.dataset.status = state;
+        } else {
+            statusEl.removeAttribute('data-status');
+        }
+        if (state === 'sent') {
+            setTimeout(() => {
+                if (statusEl && statusEl.parentNode) {
+                    statusEl.remove();
+                }
+            }, 1200);
+        }
+    }
+
+    function trackInboundMessage(text, id = null) {
         if (!text) {
             return;
         }
-        lastInboundMessage = { text: text, at: Date.now() };
+        if (id) {
+            rememberInboundId(id);
+        }
+        lastInboundMessage = { text: text, at: Date.now(), id: id ? String(id) : null };
         refreshHandoffExpiry();
     }
 
-    function isDuplicateInbound(text) {
+    function isDuplicateInbound(text, id = null) {
+        if (id && hasInboundId(id)) {
+            return true;
+        }
         if (!text || !lastInboundMessage) {
+            return false;
+        }
+        if (lastInboundMessage.id) {
             return false;
         }
         if (lastInboundMessage.text !== text) {
@@ -1538,16 +1644,22 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const text = payload.body || payload.text || payload.message || payload.chatInput;
+        const inboundId = payload.id || payload.message_id || payload.db_message_id || null;
         if (!text) {
             return;
         }
-        if (isDuplicateInbound(text)) {
+        if (!handoffBound) {
+            handoffBound = true;
+            updateHandoffUI();
+            processHandoffQueue();
+        }
+        if (isDuplicateInbound(text, inboundId)) {
             return;
         }
         addMessage('bot', text);
         history.push({ sender: 'bot', text: text });
         saveHistory();
-        trackInboundMessage(text);
+        trackInboundMessage(text, inboundId);
     }
 
     function handleSseHandoffOff() {
@@ -1561,6 +1673,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (sseSource.readyState === EventSource.CLOSED) {
             stopSse(false);
+            syncHandoffStatus();
         }
     }
 
@@ -1619,19 +1732,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!info || typeof info !== 'object') {
             return;
         }
-        if (info.off) {
-            setHandoffActive(false);
+        if (info.off || info.active === false) {
+            setHandoffActive(false, { bound: false });
             return;
         }
         if (info.timeout) {
             const wasActive = handoffActive;
-            setHandoffActive(false);
+            setHandoffActive(false, { bound: false });
             if (wasActive) {
                 sendHandoffOff();
             }
-        } else if (info.bound) {
-            setHandoffActive(true);
+        } else if (info.bound || info.active === true) {
+            const expiresAt = typeof info.expires_at === 'number' ? info.expires_at : 0;
+            setHandoffActive(true, { bound: Boolean(info.bound), expiresAt: expiresAt });
             refreshHandoffExpiry();
+            if (info.bound) {
+                processHandoffQueue();
+            }
         }
     }
 
@@ -1731,6 +1848,138 @@ document.addEventListener('DOMContentLoaded', () => {
             behavior: behavior
         });
         updateScrollButton();
+    }
+
+    function enqueueHandoffMessage(text) {
+        if (!text) {
+            return;
+        }
+        const messageEl = addMessage('user', text, false, { statusText: 'Mengirim…', statusState: 'sending' });
+        history.push({ sender: 'user', text: text });
+        saveHistory();
+        handoffQueue.push({
+            id: handoffQueueSeq + 1,
+            text: text,
+            element: messageEl,
+            attempts: 0
+        });
+        handoffQueueSeq += 1;
+        processHandoffQueue();
+    }
+
+    async function processHandoffQueue() {
+        if (handoffQueueActive) {
+            return;
+        }
+        if (!handoffEnabled || !handoffActive || !handoffBound) {
+            handoffQueue = [];
+            return;
+        }
+        handoffQueueActive = true;
+        while (handoffQueue.length > 0 && handoffEnabled && handoffActive && handoffBound) {
+            const item = handoffQueue.shift();
+            if (!item || typeof item.text !== 'string' || item.text.trim() === '') {
+                continue;
+            }
+            await sendHandoffQueuedMessage(item);
+        }
+        handoffQueueActive = false;
+    }
+
+    async function sendHandoffQueuedMessage(item) {
+        if (!handoffEnabled || !handoffActive || !handoffBound || !chatConfig.proxy_url) {
+            return;
+        }
+        const maxAttempts = 2;
+        while (item.attempts < maxAttempts) {
+            item.attempts += 1;
+            const statusLabel = item.attempts > 1 ? 'Mengirim ulang…' : 'Mengirim…';
+            setMessageStatus(item.element, 'sending', statusLabel);
+            try {
+                const requestId = uuidv4();
+                const requestPayload = {
+                    route: 'handoff',
+                    handoff: true,
+                    handoff_timeout_sec: handoffTimeout,
+                    handoff_reason: handoffReason,
+                    chatInput: item.text,
+                    text: item.text
+                };
+
+                if (sessionToken) {
+                    requestPayload.session_id = sessionToken;
+                }
+
+                const requestMeta = {
+                    visitorId: visitorId,
+                    ownerId: metaOwnerOverride || visitorId,
+                    scope: metaScopeOverride || 'web',
+                    entityId: metaEntityOverride || (window.location.hostname || ''),
+                    requestId: requestId,
+                    pageUrl: window.location.href
+                };
+
+                if (sessionToken) {
+                    requestMeta.sessionId = sessionToken;
+                }
+
+                const payload = {
+                    proxy_id: chatConfig.proxy_id,
+                    config_key: chatConfig.config_key,
+                    payload: requestPayload,
+                    meta: requestMeta
+                };
+
+                const { response, data } = await postProxy(payload);
+                if (!response || !response.ok || !data) {
+                    const errorMessage = data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.';
+                    if (!response || (response.status >= 500 && item.attempts < maxAttempts)) {
+                        await new Promise((resolve) => setTimeout(resolve, 500 * item.attempts));
+                        continue;
+                    }
+                    setMessageStatus(item.element, 'failed', 'Gagal');
+                    addMessage('bot', 'Error: ' + errorMessage);
+                    return;
+                }
+
+                const botResponse = extractBotMessage(data);
+                const finalText = (typeof botResponse === 'string' ? botResponse : '').trim();
+                const handoffInfo = data && typeof data === 'object' ? data.handoff : null;
+                const isForwarded = handoffInfo && handoffInfo.forwarded;
+
+                if (handoffInfo && handoffInfo.from_admin) {
+                    handoffBound = true;
+                    updateHandoffUI();
+                }
+
+                syncHandoffStateFromResponse(data);
+                syncTransportFromResponse(data);
+
+                setMessageStatus(item.element, 'sent', 'Terkirim');
+
+                if (!isForwarded) {
+                    const safeText = finalText !== '' ? finalText : 'Maaf, saya tidak dapat memproses permintaan tersebut.';
+                    const inboundId = handoffInfo && handoffInfo.message_id ? handoffInfo.message_id : null;
+                    const isDup = handoffInfo && handoffInfo.from_admin ? isDuplicateInbound(safeText, inboundId) : false;
+                    if (!isDup) {
+                        addMessage('bot', safeText);
+                        history.push({ sender: 'bot', text: safeText });
+                        saveHistory();
+                        if (handoffInfo && handoffInfo.from_admin) {
+                            trackInboundMessage(safeText, inboundId);
+                        }
+                    }
+                }
+                return;
+            } catch (error) {
+                if (item.attempts < maxAttempts) {
+                    await new Promise((resolve) => setTimeout(resolve, 500 * item.attempts));
+                    continue;
+                }
+                setMessageStatus(item.element, 'failed', 'Gagal');
+                return;
+            }
+        }
     }
 
     function openImageViewer(src) {
@@ -1933,7 +2182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         messageDiv.appendChild(button);
     }
 
-    function addMessage(sender, text, isTyping = false) {
+    function addMessage(sender, text, isTyping = false, options = {}) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('chatbot-message', sender);
         if (isTyping) {
@@ -1954,6 +2203,16 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 contentDiv.textContent = messageText;
             }
+        }
+
+        if (!isTyping && options && typeof options === 'object' && options.statusText) {
+            const statusEl = document.createElement('span');
+            statusEl.className = 'chatbot-message-status';
+            statusEl.textContent = options.statusText;
+            if (options.statusState) {
+                statusEl.dataset.status = options.statusState;
+            }
+            contentDiv.appendChild(statusEl);
         }
 
         messageDiv.appendChild(contentDiv);
@@ -1977,7 +2236,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (raw === '1') {
-                setHandoffActive(true);
+                setHandoffActive(true, { bound: false });
                 return;
             }
             let parsed = null;
@@ -1988,7 +2247,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const expiresAt = parsed && typeof parsed.expires_at === 'number' ? parsed.expires_at : 0;
             if (expiresAt > 0 && expiresAt > Date.now()) {
-                setHandoffActive(true, { expiresAt: expiresAt });
+                setHandoffActive(true, { bound: false, expiresAt: expiresAt });
                 scheduleHandoffExpiryCheck();
             } else {
                 clearHandoffStorage();
@@ -2277,6 +2536,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chatButton.setAttribute('aria-expanded', 'true');
 
             checkStatus();
+            syncHandoffStatus();
             ensureInputContrast();
             updateScrollButton();
 
@@ -2476,16 +2736,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const cleanedText = rawText.replace(/\r\n/g, '\n').trim();
         const isHandoffMode = handoffEnabled && handoffActive;
+        const isHandoffQueueMode = isHandoffMode && handoffBound;
+
+        input.value = '';
+        if (isHandoffQueueMode) {
+            refreshHandoffExpiry();
+            enqueueHandoffMessage(cleanedText);
+            input.focus();
+            return;
+        }
 
         addMessage('user', cleanedText);
         history.push({ sender: 'user', text: cleanedText });
         saveHistory();
-
-        input.value = '';
         input.disabled = true;
         sendButton.disabled = true;
         setSendLoading(true);
 
+        const typingStartedAt = typingMode === 'wpm' ? Date.now() : 0;
         const typingIndicator = typingMode === 'wpm' ? addMessage('bot', '', true) : null;
         if (isHandoffMode) {
             refreshHandoffExpiry();
@@ -2553,11 +2821,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const finalText = (typeof botResponse === 'string' ? botResponse : '').trim();
             const handoffInfo = data && typeof data === 'object' ? data.handoff : null;
             const isForwarded = isHandoffMode && handoffInfo && handoffInfo.forwarded;
+            if (handoffInfo && handoffInfo.from_admin) {
+                handoffBound = true;
+                updateHandoffUI();
+                processHandoffQueue();
+            }
 
             if (typingIndicator && typingIndicator.parentNode) {
                 const delay = typingDelayForText(finalText);
-                if (delay > 0) {
-                    await new Promise((resolve) => setTimeout(resolve, delay));
+                const elapsed = typingStartedAt ? Date.now() - typingStartedAt : 0;
+                const remaining = Math.max(0, delay - elapsed);
+                if (remaining > 0) {
+                    await new Promise((resolve) => setTimeout(resolve, remaining));
                 }
                 typingIndicator.remove();
             }
@@ -2567,13 +2842,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!isForwarded) {
                 const safeText = finalText !== '' ? finalText : 'Maaf, saya tidak dapat memproses permintaan tersebut.';
-                const isDup = handoffInfo && handoffInfo.from_admin ? isDuplicateInbound(safeText) : false;
+                const inboundId = handoffInfo && handoffInfo.message_id ? handoffInfo.message_id : null;
+                const isDup = handoffInfo && handoffInfo.from_admin ? isDuplicateInbound(safeText, inboundId) : false;
                 if (!isDup) {
                     addMessage('bot', safeText);
                     history.push({ sender: 'bot', text: safeText });
                     saveHistory();
                     if (handoffInfo && handoffInfo.from_admin) {
-                        trackInboundMessage(safeText);
+                        trackInboundMessage(safeText, inboundId);
                     }
                 }
             }
@@ -2596,7 +2872,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         handoffInFlight = true;
-        setHandoffActive(true);
+        setHandoffActive(true, { bound: false });
         if (handoffButton) {
             handoffButton.disabled = true;
         }
@@ -2656,11 +2932,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 syncHandoffStateFromResponse(data);
                 syncTransportFromResponse(data);
                 const handoffResponse = extractBotMessage(data);
-                if (handoffResponse && !isDuplicateInbound(handoffResponse)) {
+                const inboundId = data && data.handoff && data.handoff.message_id ? data.handoff.message_id : null;
+                if (handoffResponse && !isDuplicateInbound(handoffResponse, inboundId)) {
                     addMessage('bot', handoffResponse);
                     history.push({ sender: 'bot', text: handoffResponse });
                     saveHistory();
-                    trackInboundMessage(handoffResponse);
+                    trackInboundMessage(handoffResponse, inboundId);
                 }
             }
         } catch (error) {
@@ -2712,6 +2989,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function syncHandoffStatus() {
+        if (!handoffEnabled || !chatConfig.proxy_url || !sessionToken) {
+            return;
+        }
+        if (handoffInFlight) {
+            return;
+        }
+        try {
+            const requestId = uuidv4();
+            const requestPayload = {
+                route: 'handoff_status',
+                session_id: sessionToken
+            };
+
+            const requestMeta = {
+                visitorId: visitorId,
+                ownerId: metaOwnerOverride || visitorId,
+                scope: metaScopeOverride || 'web',
+                entityId: metaEntityOverride || (window.location.hostname || ''),
+                requestId: requestId,
+                pageUrl: window.location.href
+            };
+
+            if (sessionToken) {
+                requestMeta.sessionId = sessionToken;
+            }
+
+            const payload = {
+                proxy_id: chatConfig.proxy_id,
+                config_key: chatConfig.config_key,
+                payload: requestPayload,
+                meta: requestMeta
+            };
+
+            const { response, data } = await postProxy(payload);
+            if (response && response.ok && data) {
+                syncHandoffStateFromResponse(data);
+            }
+        } catch (error) {
+            // ignore status sync failures
+        }
+    }
+
     async function bootstrapChat() {
         try {
             const response = await fetch(bootstrapUrl, {
@@ -2734,6 +3054,9 @@ document.addEventListener('DOMContentLoaded', () => {
             sendButton.disabled = false;
             root.classList.add('ai-chatbot-root--ready');
             ensureInputContrast();
+            if (handoffEnabled && sessionToken) {
+                syncHandoffStatus();
+            }
         } catch (error) {
             console.error('AI Chatbot bootstrap failed:', error);
             root.style.display = 'none';
