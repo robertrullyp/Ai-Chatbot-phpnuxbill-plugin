@@ -1370,9 +1370,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const metaScopeOverride = metaScopeOverrideRaw ? metaScopeOverrideRaw.trim() : '';
     const metaEntityOverride = metaEntityOverrideRaw ? metaEntityOverrideRaw.trim() : '';
     const metaOwnerOverride = metaOwnerOverrideRaw ? metaOwnerOverrideRaw.trim() : '';
+    let proxyTimeoutMs = 30000;
+    const debugEnabled = (() => {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('chatbot_debug') === '1') {
+                return true;
+            }
+            return localStorage.getItem('ai_chatbot_debug') === '1';
+        } catch (error) {
+            return false;
+        }
+    })();
+
+    function debugLog() {
+        if (!debugEnabled) {
+            return;
+        }
+        try {
+            const args = Array.prototype.slice.call(arguments);
+            args.unshift('[AI Chatbot]');
+            console.log.apply(console, args);
+        } catch (error) {
+            // ignore logging errors
+        }
+    }
 
     if (chatFrame) {
         chatFrame.dataset.frameMode = frameMode;
+    }
+
+    function updateProxyTimeoutFromConfig(config) {
+        if (!config || typeof config !== 'object') {
+            return;
+        }
+        const raw = config.request_timeout;
+        const seconds = typeof raw === 'number' ? raw : parseInt(raw, 10);
+        if (!isNaN(seconds) && seconds > 0) {
+            proxyTimeoutMs = Math.max(15000, seconds * 1000);
+        }
     }
 
     function applyStatus(state, label) {
@@ -1636,6 +1672,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!payload || typeof payload !== 'object') {
             return;
         }
+        debugLog('SSE message', payload);
         if (!handoffActive) {
             return;
         }
@@ -1671,6 +1708,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleSseHandoffOff() {
+        debugLog('SSE handoff_off event');
         setHandoffActive(false);
         stopSse(true);
     }
@@ -1679,6 +1717,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!sseSource) {
             return;
         }
+        debugLog('SSE error', { readyState: sseSource.readyState });
         if (sseSource.readyState === EventSource.CLOSED) {
             stopSse(false);
             syncHandoffStatus();
@@ -1717,6 +1756,10 @@ document.addEventListener('DOMContentLoaded', () => {
             sseSource = null;
             return;
         }
+        debugLog('SSE start', { sessionId: sessionId, url: url });
+        sseSource.addEventListener('open', () => {
+            debugLog('SSE open');
+        });
         sseSource.addEventListener('message', handleSseMessage);
         sseSource.addEventListener('handoff_off', handleSseHandoffOff);
         sseSource.addEventListener('error', handleSseError);
@@ -1733,6 +1776,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!transport || typeof transport !== 'object') {
             return;
         }
+        debugLog('Transport update', transport);
         startSse(transport);
     }
 
@@ -1930,7 +1974,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const maxAttempts = 2;
-        const queueTimeoutMs = 12000;
+        const queueTimeoutMs = Math.max(15000, proxyTimeoutMs + 2000);
         while (item.attempts < maxAttempts) {
             item.attempts += 1;
             const statusLabel = item.attempts > 1 ? 'Mengirim ulang…' : 'Mengirim…';
@@ -1984,16 +2028,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (timeoutId) {
                     clearTimeout(timeoutId);
                 }
-                if (result && result.timeout) {
-                    setMessageStatus(item.element, 'sent', 'Terkirim');
-                    return;
-                }
-
                 const response = result ? result.response : null;
                 const data = result ? result.data : null;
-                if (!response || !response.ok || !data) {
-                    const errorMessage = data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.';
-                    if (!response || (response.status >= 500 && item.attempts < maxAttempts)) {
+                const isTimeout = result && result.timeout;
+                if (!response || !response.ok || !data || isTimeout) {
+                    const errorMessage = isTimeout
+                        ? 'Koneksi timeout. Silakan coba lagi.'
+                        : (data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.');
+                    if ((!response || isTimeout || response.status >= 500) && item.attempts < maxAttempts) {
                         await new Promise((resolve) => setTimeout(resolve, 500 * item.attempts));
                         continue;
                     }
@@ -2818,6 +2860,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function fetchWithTimeout(url, options, timeoutMs) {
+        if (!timeoutMs || typeof AbortController === 'undefined') {
+            return fetch(url, options);
+        }
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const nextOptions = Object.assign({}, options, { signal: controller.signal });
+        return fetch(url, nextOptions).finally(() => clearTimeout(timer));
+    }
+
     async function postProxyInternal(payload) {
         let attempt = 0;
         while (attempt < 2) {
@@ -2825,12 +2877,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (csrfToken) {
                 payload.csrf_token = csrfToken;
             }
-            const response = await fetch(chatConfig.proxy_url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify(payload)
-            });
+            let response = null;
+            try {
+                response = await fetchWithTimeout(chatConfig.proxy_url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                }, proxyTimeoutMs);
+            } catch (error) {
+                if (error && error.name === 'AbortError') {
+                    return { response: null, data: null, timeout: true };
+                }
+                throw error;
+            }
             let data = null;
             try {
                 data = await response.json();
@@ -2947,10 +3007,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 meta: requestMeta
             };
 
-            const { response, data } = await postProxy(payload);
+            const { response, data, timeout } = await postProxy(payload);
 
             if (!response || !response.ok || !data) {
-                const errorMessage = data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.';
+                const errorMessage = timeout
+                    ? 'Koneksi timeout. Silakan coba lagi.'
+                    : (data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.');
                 if (typingIndicator && typingIndicator.parentNode) {
                     typingIndicator.remove();
                 }
@@ -3065,10 +3127,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 meta: requestMeta
             };
 
-            const { response, data } = await postProxy(payload);
+            const { response, data, timeout } = await postProxy(payload);
 
             if (!response || !response.ok || !data) {
-                const errorMessage = data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.';
+                const errorMessage = timeout
+                    ? 'Koneksi timeout. Silakan coba lagi.'
+                    : (data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.');
                 addMessage('bot', 'Error: ' + errorMessage);
             } else {
                 syncHandoffStateFromResponse(data);
@@ -3199,6 +3263,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             chatConfig = bootstrapData;
             csrfToken = bootstrapData.csrf_token || null;
+            updateProxyTimeoutFromConfig(bootstrapData);
             input.disabled = false;
             sendButton.disabled = false;
             root.classList.add('ai-chatbot-root--ready');
