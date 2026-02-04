@@ -1938,6 +1938,7 @@ function ai_chatbot_bootstrap()
         'proxy_id' => $proxy_id,
         'config_key' => $config_key,
         'proxy_url' => $proxy_url,
+        'request_timeout' => isset($proxy_config['request_timeout']) ? (int) $proxy_config['request_timeout'] : 30,
     ];
 
     if ($csrf_token !== '') {
@@ -2646,5 +2647,4 @@ function ai_chatbot_plugin_uninstall($purge_config = true)
         }
     }
 }
-
 
