@@ -2319,10 +2319,6 @@ function ai_chatbot_run_proxy()
             $clean_meta['name'] = ai_chatbot_limit_length($customer_name, 160);
         }
 
-        $preferred_session = $customer_phone !== '' ? $customer_phone : $customer_username;
-        if ($preferred_session !== '') {
-            $clean_meta['sessionId'] = ai_chatbot_limit_length($preferred_session, 120);
-        }
     }
 
     $session_id = '';
