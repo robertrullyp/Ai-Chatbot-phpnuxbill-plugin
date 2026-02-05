@@ -192,6 +192,31 @@
         white-space: nowrap;
     }
 
+    .ai-chatbot-unread {
+        position: absolute;
+        top: 4px;
+        right: 6px;
+        min-width: 18px;
+        height: 18px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #ef4444;
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 18px;
+        text-align: center;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.28);
+        pointer-events: none;
+    }
+
+    .ai-chatbot-unread.is-visible {
+        display: inline-flex;
+    }
+
     .ai-chatbot-frame {
         display: none;
         flex-direction: column;
@@ -1205,6 +1230,7 @@
             </svg>
         </span>
         <span class="ai-chatbot-button-text">{$button_label|escape}</span>
+        <span class="ai-chatbot-unread" aria-hidden="true"></span>
     </button>
     <div id="ai-chatbot-frame" class="ai-chatbot-frame" data-frame-mode="{$frame_mode|escape}" role="dialog" aria-modal="false" aria-hidden="true" aria-label="{$chatbot_title|escape}">
         <div class="chatbot-header">
@@ -1269,6 +1295,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const chatButton = document.getElementById('ai-chatbot-button');
+    const unreadBadge = chatButton ? chatButton.querySelector('.ai-chatbot-unread') : null;
     const chatFrame = document.getElementById('ai-chatbot-frame');
     const closeButton = chatFrame ? chatFrame.querySelector('.chatbot-close') : null;
     const handoffButton = chatFrame ? chatFrame.querySelector('.chatbot-handoff') : null;
@@ -1314,6 +1341,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let handoffExpiryTimer = null;
     let lastInboundMessage = null;
     let lastHandoffNotice = null;
+    let unreadCount = 0;
+    let unreadStorageKey = null;
     const inboundIdCache = new Set();
     const inboundIdQueue = [];
     const inboundIdLimit = 120;
@@ -1322,6 +1351,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let streamSocket = null;
     let streamInfo = null;
     let streamReconnectTimer = null;
+    let handoffPollTimer = null;
+    let handoffPollingActive = false;
+    const handoffPollBaseMs = 5000;
+    const handoffPollMaxMs = 30000;
+    let handoffPollDelayMs = handoffPollBaseMs;
+    let rateLimitUntil = 0;
     const handoffAckWaiters = new Map();
 
     const visitorIdKey = 'ai_chatbot_visitor_id';
@@ -1340,11 +1375,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const handoffEnabledRaw = "{$chatbot.chatbot_handoff_enabled|default:'0'|escape:'javascript'}";
     const handoffLabelRaw = "{$handoff_label|escape:'javascript'}";
     const handoffTimeoutRaw = parseInt("{$chatbot.chatbot_handoff_timeout|default:600|escape:'javascript'}", 10);
+    const handoffRateLimitRaw = parseInt("{$chatbot.chatbot_handoff_rate_limit|default:15|escape:'javascript'}", 10);
     const handoffReasonRaw = "{$chatbot.chatbot_handoff_reason|default:'chat_dengan_admin'|escape:'javascript'}";
     const handoffNoticeRaw = "{$chatbot.chatbot_handoff_notice|default:'Permintaan terkirim. Admin akan segera bergabung.'|escape:'javascript'}";
     const metaScopeOverrideRaw = "{$chatbot.chatbot_meta_scope|default:''|escape:'javascript'}";
     const metaEntityOverrideRaw = "{$chatbot.chatbot_meta_entity_id|default:''|escape:'javascript'}";
     const metaOwnerOverrideRaw = "{$chatbot.chatbot_meta_owner_id|default:''|escape:'javascript'}";
+    const rateLimitDefaultMs = !isNaN(handoffRateLimitRaw) && handoffRateLimitRaw > 0
+        ? handoffRateLimitRaw * 1000
+        : 15000;
 
     const settings = {
         history_mode: historyModeRaw === 'count' ? 'count' : 'ttl',
@@ -1399,6 +1438,93 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function parseRetryAfter(value) {
+        if (!value) {
+            return 0;
+        }
+        const seconds = parseInt(value, 10);
+        if (!isNaN(seconds)) {
+            return seconds * 1000;
+        }
+        const dateValue = Date.parse(value);
+        if (!isNaN(dateValue)) {
+            return Math.max(0, dateValue - Date.now());
+        }
+        return 0;
+    }
+
+    function getRateLimitDelay(response, data) {
+        let retryMs = 0;
+        if (response && response.headers && typeof response.headers.get === 'function') {
+            retryMs = parseRetryAfter(response.headers.get('Retry-After'));
+        }
+        if (!retryMs && data && typeof data === 'object') {
+            if (typeof data.retry_after_ms === 'number') {
+                retryMs = data.retry_after_ms;
+            } else if (typeof data.retry_after === 'number') {
+                retryMs = data.retry_after * 1000;
+            } else if (data.error && typeof data.error === 'object') {
+                if (typeof data.error.retry_after_ms === 'number') {
+                    retryMs = data.error.retry_after_ms;
+                } else if (typeof data.error.retry_after === 'number') {
+                    retryMs = data.error.retry_after * 1000;
+                }
+            }
+        }
+        if (!retryMs) {
+            retryMs = rateLimitDefaultMs;
+        }
+        return Math.min(120000, Math.max(3000, retryMs));
+    }
+
+    function markRateLimited(response, data) {
+        const delayMs = getRateLimitDelay(response, data);
+        rateLimitUntil = Math.max(rateLimitUntil, Date.now() + delayMs);
+        return delayMs;
+    }
+
+    function isRateLimited() {
+        return rateLimitUntil > Date.now();
+    }
+
+    function getRateLimitRemaining() {
+        return Math.max(0, rateLimitUntil - Date.now());
+    }
+
+    function isRateLimitResponse(response, data) {
+        if (response && response.status === 429) {
+            return true;
+        }
+        if (data && typeof data === 'object') {
+            if (data.code === 'RATE_LIMIT') {
+                return true;
+            }
+            if (data.error && typeof data.error === 'object' && data.error.code === 'RATE_LIMIT') {
+                return true;
+            }
+            if (typeof data.error === 'string' && data.error.indexOf('RATE_LIMIT') !== -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function formatCooldown(ms) {
+        const seconds = Math.ceil(ms / 1000);
+        if (!seconds || seconds <= 0) {
+            return 'sebentar lagi';
+        }
+        return seconds + ' detik';
+    }
+
+    function getRateLimitMessage() {
+        const remaining = getRateLimitRemaining();
+        if (remaining <= 0) {
+            return 'Terlalu banyak permintaan. Silakan coba lagi sebentar.';
+        }
+        return 'Terlalu banyak permintaan. Coba lagi dalam ' + formatCooldown(remaining) + '.';
+    }
+
     if (chatFrame) {
         chatFrame.dataset.frameMode = frameMode;
     }
@@ -1449,6 +1575,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             updateHandoffUI();
             stopStream(true);
+            stopHandoffPolling();
             handoffExpiresAt = 0;
             lastInboundMessage = null;
             clearHandoffStorage();
@@ -1468,6 +1595,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateHandoffUI();
         if (!handoffActive) {
             stopStream(true);
+            stopHandoffPolling();
             handoffExpiresAt = 0;
             lastInboundMessage = null;
             handoffBound = false;
@@ -1487,6 +1615,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         persistHandoffState();
         scheduleHandoffExpiryCheck();
+        startHandoffPolling();
     }
 
     function updateHandoffUI() {
@@ -1581,7 +1710,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             type: 'handoff:off',
             id: requestId,
-            text: reasonText || 'Sesi handoff diakhiri oleh user.'
+            text: reasonText || 'Sesi chat dengan Admin diakhiri oleh user.'
         };
         return new Promise((resolve) => {
             const timer = setTimeout(() => {
@@ -1718,6 +1847,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateUnreadBadge() {
+        if (!unreadBadge || !chatButton) {
+            return;
+        }
+        if (unreadCount > 0) {
+            const label = unreadCount > 99 ? '99+' : String(unreadCount);
+            unreadBadge.textContent = label;
+            unreadBadge.classList.add('is-visible');
+            chatButton.setAttribute('aria-label', chatButton.title + ' (' + label + ' pesan baru)');
+        } else {
+            unreadBadge.textContent = '';
+            unreadBadge.classList.remove('is-visible');
+            chatButton.setAttribute('aria-label', chatButton.title || '');
+        }
+    }
+
+    function setUnreadCount(count, persist = true) {
+        unreadCount = Math.max(0, Number(count) || 0);
+        if (persist && unreadStorageKey) {
+            try {
+                localStorage.setItem(unreadStorageKey, String(unreadCount));
+            } catch (error) {
+                // ignore storage errors
+            }
+        }
+        updateUnreadBadge();
+    }
+
+    function incrementUnreadCount() {
+        setUnreadCount(unreadCount + 1);
+    }
+
     function trackInboundMessage(text, id = null) {
         if (!text) {
             return;
@@ -1828,10 +1989,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function normalizeWsUrl(url) {
+        if (!url) {
+            return '';
+        }
+        if (window.location.protocol === 'https:' && url.startsWith('ws://')) {
+            return '';
+        }
+        return url;
+    }
+
     function resolveStreamUrl(transport, token, sessionId) {
         const direct = transport.ws_url || transport.wsUrl || transport.url;
         if (direct) {
-            return appendStreamParams(String(direct), { token: token, session_id: sessionId });
+            const withParams = appendStreamParams(String(direct), { token: token, session_id: sessionId });
+            return normalizeWsUrl(withParams);
         }
         const endpoint = transport.endpoint ? String(transport.endpoint) : '';
         if (!endpoint) {
@@ -1855,7 +2027,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!url) {
             return '';
         }
-        return appendStreamParams(url, { token: token, session_id: sessionId });
+        const withParams = appendStreamParams(url, { token: token, session_id: sessionId });
+        return normalizeWsUrl(withParams);
     }
 
     function handleStreamMessage(event) {
@@ -2023,6 +2196,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const url = resolveStreamUrl(transport, token, sessionId);
         if (!url) {
+            stopStream(true);
             return;
         }
         if (streamInfo && streamInfo.url === url && streamSocket) {
@@ -2078,8 +2252,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (info.off || info.active === false) {
+            if (handoffInFlight) {
+                return;
+            }
             if (handoffActive) {
-                addHandoffNotice('Sesi handoff telah berakhir.');
+                addHandoffNotice('Sesi chat dengan Admin telah berakhir.');
             }
             setHandoffActive(false, { bound: false });
             return;
@@ -2096,7 +2273,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else if (info.bound || info.active === true) {
             const expiresAt = typeof info.expires_at === 'number' ? info.expires_at : 0;
-            setHandoffActive(true, { bound: Boolean(info.bound), expiresAt: expiresAt });
+            const nextBound = typeof info.bound === 'boolean' ? info.bound : handoffBound;
+            setHandoffActive(true, { bound: nextBound, expiresAt: expiresAt });
             refreshHandoffExpiry();
             if (info.bound) {
                 processHandoffQueue();
@@ -2251,6 +2429,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const maxAttempts = 2;
         const queueTimeoutMs = Math.max(15000, proxyTimeoutMs + 2000);
         while (item.attempts < maxAttempts) {
+            if (isRateLimited()) {
+                const waitMs = getRateLimitRemaining();
+                setMessageStatus(item.element, 'sending', 'Menunggu rate limit...');
+                await new Promise((resolve) => setTimeout(resolve, waitMs));
+                continue;
+            }
             item.attempts += 1;
             const statusLabel = item.attempts > 1 ? 'Mengirim ulang…' : 'Mengirim…';
             setMessageStatus(item.element, 'sending', statusLabel);
@@ -2291,6 +2475,17 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
                             }
                         }
+                        return;
+                    }
+
+                    if (isRateLimitResponse(null, wsData)) {
+                        markRateLimited(null, wsData);
+                        if (item.attempts < maxAttempts) {
+                            await new Promise((resolve) => setTimeout(resolve, getRateLimitRemaining()));
+                            continue;
+                        }
+                        setMessageStatus(item.element, 'failed', 'Gagal');
+                        addMessage('bot', getRateLimitMessage());
                         return;
                     }
 
@@ -2362,6 +2557,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 const response = result ? result.response : null;
                 const data = result ? result.data : null;
                 const isTimeout = result && result.timeout;
+                if (isRateLimitResponse(response, data)) {
+                    markRateLimited(response, data);
+                    if (item.attempts < maxAttempts) {
+                        await new Promise((resolve) => setTimeout(resolve, getRateLimitRemaining()));
+                        continue;
+                    }
+                    setMessageStatus(item.element, 'failed', 'Gagal');
+                    addMessage('bot', getRateLimitMessage());
+                    return;
+                }
                 if (!response || !response.ok || !data || isTimeout) {
                     const errorMessage = isTimeout
                         ? 'Koneksi timeout. Silakan coba lagi.'
@@ -2522,6 +2727,18 @@ document.addEventListener('DOMContentLoaded', () => {
     handoffStorageKey = sessionFingerprint
         ? 'ai_chatbot_handoff_' + sessionFingerprint
         : 'ai_chatbot_handoff_' + visitorId;
+    unreadStorageKey = sessionFingerprint
+        ? 'ai_chatbot_unread_' + sessionFingerprint
+        : 'ai_chatbot_unread_' + visitorId;
+    try {
+        const storedUnread = parseInt(localStorage.getItem(unreadStorageKey) || '0', 10);
+        if (!isNaN(storedUnread) && storedUnread > 0) {
+            unreadCount = storedUnread;
+        }
+    } catch (error) {
+        // ignore storage errors
+    }
+    updateUnreadBadge();
 
     function normalizeSessionId(value) {
         if (typeof value !== 'string') {
@@ -2601,7 +2818,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             history = Array.isArray(data.messages) ? data.messages : [];
-            history.forEach((msg) => addMessage(msg.sender, msg.text));
+            history.forEach((msg) => addMessage(msg.sender, msg.text, false, { skipUnread: true }));
         } catch (error) {
             localStorage.removeItem(historyKey);
         }
@@ -2685,6 +2902,9 @@ document.addEventListener('DOMContentLoaded', () => {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
         updateScrollButton();
         updateAutoHeight();
+        if (!isTyping && sender === 'bot' && !chatFrame.classList.contains('is-open') && !(options && options.skipUnread)) {
+            incrementUnreadCount();
+        }
         return messageDiv;
     }
 
@@ -3018,6 +3238,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chatFrame.classList.add('is-open');
             chatFrame.setAttribute('aria-hidden', 'false');
             chatButton.setAttribute('aria-expanded', 'true');
+            setUnreadCount(0);
 
             checkStatus();
             syncHandoffStatus();
@@ -3218,6 +3439,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function postProxyInternal(payload) {
+        if (isRateLimited()) {
+            return {
+                response: null,
+                data: { error: 'RATE_LIMIT', retry_after_ms: getRateLimitRemaining() },
+                rate_limited: true
+            };
+        }
         let attempt = 0;
         while (attempt < 2) {
             attempt += 1;
@@ -3252,6 +3480,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data && data.proxy_id) {
                 chatConfig.proxy_id = data.proxy_id;
             }
+            if (response && response.status === 429) {
+                markRateLimited(response, data);
+                return { response: response, data: data, rate_limited: true };
+            }
             if (response.status === 419 && attempt < 2) {
                 if (data && data.csrf_token) {
                     continue;
@@ -3279,6 +3511,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (handoffInFlight) {
+            return;
+        }
+        if (isRateLimited()) {
+            addMessage('bot', getRateLimitMessage());
             return;
         }
         const cleanedText = rawText.replace(/\r\n/g, '\n').trim();
@@ -3354,7 +3590,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 meta: requestMeta
             };
 
-            const { response, data, timeout } = await postProxy(payload);
+            const result = await postProxy(payload);
+            const response = result ? result.response : null;
+            const data = result ? result.data : null;
+            const timeout = result ? result.timeout : false;
+            if (isRateLimitResponse(response, data)) {
+                markRateLimited(response, data);
+                if (typingIndicator && typingIndicator.parentNode) {
+                    typingIndicator.remove();
+                }
+                addMessage('bot', getRateLimitMessage());
+                return;
+            }
 
             if (!response || !response.ok || !data) {
                 const errorMessage = timeout
@@ -3420,6 +3667,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!handoffEnabled || !chatConfig.proxy_url || handoffInFlight) {
             return;
         }
+        if (isRateLimited()) {
+            addMessage('bot', getRateLimitMessage());
+            return;
+        }
 
         handoffInFlight = true;
         setHandoffActive(true, { bound: false });
@@ -3428,6 +3679,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         input.disabled = true;
         sendButton.disabled = true;
+        const historySnapshot = history.length > 0 ? history.slice(-6) : [];
 
         if (handoffNotice) {
             addMessage('bot', handoffNotice);
@@ -3443,11 +3695,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const requestPayload = {
                 route: 'handoff',
                 handoff: true,
+                handoff_init: true,
                 handoff_timeout_sec: handoffTimeout,
                 handoff_reason: handoffReason,
                 chatInput: handoffMessage,
                 text: handoffMessage
             };
+            if (historySnapshot.length) {
+                requestPayload.handoff_history = historySnapshot;
+            }
 
             const handoffSession = getHandoffSessionId();
             if (handoffSession) {
@@ -3474,9 +3730,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 meta: requestMeta
             };
 
-            const { response, data, timeout } = await postProxy(payload);
+            const result = await postProxy(payload);
+            const response = result ? result.response : null;
+            const data = result ? result.data : null;
+            const timeout = result ? result.timeout : false;
 
-            if (!response || !response.ok || !data) {
+            if (isRateLimitResponse(response, data)) {
+                markRateLimited(response, data);
+                addMessage('bot', getRateLimitMessage());
+            } else if (!response || !response.ok || !data) {
                 const errorMessage = timeout
                     ? 'Koneksi timeout. Silakan coba lagi.'
                     : (data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.');
@@ -3514,7 +3776,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (canUseHandoffWs()) {
-            const wsResult = await sendHandoffOffWs('Sesi handoff diakhiri oleh user.');
+            const wsResult = await sendHandoffOffWs('Sesi chat dengan Admin diakhiri oleh user.');
             const wsData = wsResult && wsResult.data && typeof wsResult.data === 'object' ? wsResult.data : null;
             if (wsData) {
                 syncHandoffStateFromResponse(wsData);
@@ -3532,7 +3794,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const requestPayload = {
                 route: 'handoff_off',
                 session_id: handoffSession,
-                text: 'Sesi handoff diakhiri oleh user.'
+                text: 'Sesi chat dengan Admin diakhiri oleh user.'
             };
 
             const requestMeta = {
@@ -3563,6 +3825,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function syncHandoffStatus() {
         if (!handoffEnabled || !chatConfig.proxy_url) {
+            return;
+        }
+        if (isRateLimited()) {
             return;
         }
         if (handoffInFlight) {
@@ -3597,12 +3862,151 @@ document.addEventListener('DOMContentLoaded', () => {
                 meta: requestMeta
             };
 
-            const { response, data } = await postProxy(payload);
+            const result = await postProxy(payload);
+            const response = result ? result.response : null;
+            const data = result ? result.data : null;
+            if (isRateLimitResponse(response, data)) {
+                markRateLimited(response, data);
+                return;
+            }
             if (response && response.ok && data) {
                 syncHandoffStateFromResponse(data);
             }
         } catch (error) {
             // ignore status sync failures
+        }
+    }
+
+    async function pollHandoffReplies() {
+        if (!handoffEnabled || !chatConfig.proxy_url) {
+            return { ok: false, repliesCount: 0 };
+        }
+        const handoffSession = getHandoffSessionId();
+        if (!handoffSession) {
+            return { ok: false, repliesCount: 0 };
+        }
+        if (isRateLimited()) {
+            return { ok: false, repliesCount: 0, rateLimited: true, retryMs: getRateLimitRemaining() };
+        }
+        try {
+            const requestId = uuidv4();
+            const requestPayload = {
+                route: 'handoff_poll',
+                session_id: handoffSession
+            };
+
+            const requestMeta = {
+                visitorId: visitorId,
+                ownerId: metaOwnerOverride || visitorId,
+                scope: metaScopeOverride || 'web',
+                entityId: metaEntityOverride || (window.location.hostname || ''),
+                requestId: requestId,
+                pageUrl: window.location.href
+            };
+
+            requestMeta.sessionId = handoffSession;
+
+            const payload = {
+                proxy_id: chatConfig.proxy_id,
+                config_key: chatConfig.config_key,
+                payload: requestPayload,
+                meta: requestMeta
+            };
+
+            const { response, data } = await postProxy(payload);
+            if (!response || !response.ok || !data) {
+                return { ok: false, repliesCount: 0 };
+            }
+            if (isRateLimitResponse(response, data)) {
+                markRateLimited(response, data);
+                return { ok: false, repliesCount: 0, rateLimited: true, retryMs: getRateLimitRemaining() };
+            }
+            syncHandoffStateFromResponse(data);
+            const replies = Array.isArray(data.replies) ? data.replies : [];
+            if (replies.length === 0) {
+                return { ok: true, repliesCount: 0 };
+            }
+            if (!handoffBound) {
+                handoffBound = true;
+                updateHandoffUI();
+                processHandoffQueue();
+            }
+            replies.forEach((reply) => {
+                if (!reply || typeof reply !== 'object') {
+                    return;
+                }
+                const text = extractBotMessage(reply);
+                const inboundId = reply.id || reply.message_id || reply.db_message_id || null;
+                if (!text) {
+                    return;
+                }
+                if (isDuplicateInbound(text, inboundId)) {
+                    return;
+                }
+                addMessage('bot', text);
+                history.push({ sender: 'bot', text: text });
+                saveHistory();
+                trackInboundMessage(text, inboundId);
+            });
+            return { ok: true, repliesCount: replies.length };
+        } catch (error) {
+            // ignore polling errors
+            return { ok: false, repliesCount: 0 };
+        }
+    }
+
+    function startHandoffPolling() {
+        if (handoffPollingActive) {
+            return;
+        }
+        handoffPollingActive = true;
+        handoffPollDelayMs = handoffPollBaseMs;
+
+        const scheduleNext = (delayMs) => {
+            if (!handoffEnabled || !handoffActive) {
+                return;
+            }
+            const delay = Math.max(handoffPollBaseMs, Math.min(handoffPollMaxMs, delayMs));
+            handoffPollTimer = setTimeout(runPollTick, delay);
+        };
+
+        const runPollTick = async () => {
+            handoffPollTimer = null;
+            if (!handoffEnabled || !handoffActive) {
+                return;
+            }
+            if (canUseHandoffWs() && streamSocket && streamSocket.readyState === WebSocket.OPEN) {
+                handoffPollDelayMs = handoffPollBaseMs;
+                scheduleNext(handoffPollDelayMs);
+                return;
+            }
+            const result = await pollHandoffReplies();
+            if (result && result.rateLimited) {
+                const retryMs = result.retryMs || handoffPollBaseMs;
+                handoffPollDelayMs = Math.min(handoffPollMaxMs, Math.max(handoffPollBaseMs, retryMs));
+                scheduleNext(handoffPollDelayMs);
+                return;
+            }
+            if (result && result.ok) {
+                if (result.repliesCount > 0) {
+                    handoffPollDelayMs = handoffPollBaseMs;
+                } else {
+                    handoffPollDelayMs = Math.min(handoffPollMaxMs, Math.floor(handoffPollDelayMs * 1.35));
+                }
+            } else {
+                handoffPollDelayMs = Math.min(handoffPollMaxMs, Math.floor(handoffPollDelayMs * 1.6));
+            }
+            scheduleNext(handoffPollDelayMs);
+        };
+
+        runPollTick();
+    }
+
+    function stopHandoffPolling() {
+        handoffPollingActive = false;
+        if (handoffPollTimer) {
+            clearTimeout(handoffPollTimer);
+            handoffPollTimer = null;
         }
     }
 
@@ -3646,7 +4050,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const sessionToClose = handoffActive ? getHandoffSessionId() : (handoffSessionId || '');
             if (handoffActive || sessionToClose) {
                 if (handoffActive) {
-                    addHandoffNotice('Sesi handoff diakhiri oleh user.');
+                    addHandoffNotice('Sesi chat dengan Admin diakhiri oleh user.');
                 }
                 setHandoffActive(false);
                 sendHandoffOff(sessionToClose);
@@ -3739,6 +4143,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.removeEventListener('click', handleDocumentClick);
         document.removeEventListener('keydown', handleKeydown);
         window.removeEventListener('resize', updateAutoHeight);
+        stopHandoffPolling();
         stopStream(true);
     });
 
