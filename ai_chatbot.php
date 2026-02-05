@@ -1009,6 +1009,46 @@ function ai_chatbot_build_sse_url($base, $endpoint, array $params)
 
     return $parts['scheme'] . '://' . $parts['host'] . $port . $path . $query_string;
 }
+
+function ai_chatbot_build_ws_url($base, $endpoint, array $params)
+{
+    $endpoint = trim((string) $endpoint);
+    if ($endpoint === '') {
+        return '';
+    }
+
+    $has_scheme = (bool) preg_match('#^wss?://#i', $endpoint) || preg_match('#^https?://#i', $endpoint);
+    $full = $has_scheme ? $endpoint : rtrim((string) $base, '/') . '/' . ltrim($endpoint, '/');
+
+    $parts = parse_url($full);
+    if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+        return '';
+    }
+
+    $scheme = strtolower((string) $parts['scheme']);
+    if ($scheme === 'http') {
+        $scheme = 'ws';
+    } elseif ($scheme === 'https') {
+        $scheme = 'wss';
+    }
+
+    $query = [];
+    if (!empty($parts['query'])) {
+        parse_str($parts['query'], $query);
+    }
+    foreach ($params as $key => $value) {
+        if ($value === null || $value === '') {
+            continue;
+        }
+        $query[$key] = $value;
+    }
+
+    $path = $parts['path'] ?? '';
+    $port = isset($parts['port']) ? ':' . (int) $parts['port'] : '';
+    $query_string = $query ? ('?' . http_build_query($query)) : '';
+
+    return $scheme . '://' . $parts['host'] . $port . $path . $query_string;
+}
 if (!defined('AI_CHATBOT_AUTOSYNC_REGISTERED')) {
     define('AI_CHATBOT_AUTOSYNC_REGISTERED', true);
 
@@ -1984,7 +2024,6 @@ function ai_chatbot_stream()
     $transport_endpoint = $context['endpoint'] ?? '';
     $sse_url = ai_chatbot_build_sse_url($base, $transport_endpoint, [
         'session_id' => $session_id,
-        'handoff' => 1,
         'token' => $token,
     ]);
 
@@ -2111,6 +2150,7 @@ function ai_chatbot_run_proxy()
     $handoff_request = in_array($route, ['handoff', 'handoff_off', 'handoff_timeout', 'handoff_status', 'handoff-status', 'handoff_state', 'handoff-state', 'admin'], true) || $handoff_flag;
 
     $chat_input = isset($payload['chatInput']) ? trim((string) $payload['chatInput']) : '';
+    $payload_text = isset($payload['text']) ? trim((string) $payload['text']) : '';
     if ($chat_input === '' && !$handoff_request) {
         ai_chatbot_send_error('Pesan tidak boleh kosong.', 422, [
             'proxy_id' => $proxy_id,
@@ -2173,6 +2213,9 @@ function ai_chatbot_run_proxy()
         ai_chatbot_send_error('Pesan melebihi batas ' . $max_chars . ' karakter.', 422, $extra);
     }
 
+    if ($chat_input === '' && $handoff_request && $payload_text !== '') {
+        $chat_input = $payload_text;
+    }
     $payload['chatInput'] = ai_chatbot_limit_length($chat_input, $max_chars > 0 ? $max_chars : 4000);
     $payload['text'] = $payload['chatInput'];
 
@@ -2591,6 +2634,42 @@ function ai_chatbot_run_proxy()
             $decoded['transport']['session_id'] = $session_id;
         }
         ai_chatbot_store_sse_context($session_id, $decoded['transport']);
+    }
+
+    if (
+        isset($decoded['transport']) &&
+        is_array($decoded['transport']) &&
+        isset($decoded['transport']['mode']) &&
+        strtolower((string) $decoded['transport']['mode']) === 'ws'
+    ) {
+        if (!isset($decoded['transport']['session_id']) || $decoded['transport']['session_id'] === '') {
+            $decoded['transport']['session_id'] = $session_id;
+        }
+
+        $existing_ws_url = '';
+        if (!empty($decoded['transport']['ws_url'])) {
+            $existing_ws_url = (string) $decoded['transport']['ws_url'];
+        } elseif (!empty($decoded['transport']['wsUrl'])) {
+            $existing_ws_url = (string) $decoded['transport']['wsUrl'];
+        } elseif (!empty($decoded['transport']['url'])) {
+            $existing_ws_url = (string) $decoded['transport']['url'];
+        }
+
+        if ($existing_ws_url !== '') {
+            $decoded['transport']['ws_url'] = $existing_ws_url;
+        } else {
+            $ws_base = ai_chatbot_gateway_base_url($proxy_config['endpoint'] ?? '');
+            if ($ws_base !== '' && empty($decoded['transport']['base_url']) && empty($decoded['transport']['baseUrl'])) {
+                $decoded['transport']['base_url'] = $ws_base;
+            }
+            $ws_url = ai_chatbot_build_ws_url($ws_base, (string) ($decoded['transport']['endpoint'] ?? ''), [
+                'session_id' => $decoded['transport']['session_id'],
+                'token' => (string) ($decoded['transport']['token'] ?? ''),
+            ]);
+            if ($ws_url !== '') {
+                $decoded['transport']['ws_url'] = $ws_url;
+            }
+        }
     }
 
     if (!array_key_exists('success', $decoded)) {
