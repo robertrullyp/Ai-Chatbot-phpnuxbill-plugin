@@ -565,6 +565,11 @@
                                                 <input type="number" min="0" max="86400" id="chatbot_handoff_timeout" name="chatbot_handoff_timeout" class="form-control" value="{$config.chatbot_handoff_timeout|escape}">
                                                 <span class="chatbot-helper">Nilai ini dikirim sebagai <code>handoff_timeout_sec</code>. 0 = tanpa timeout.</span>
                                             </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_handoff_rate_limit">Cooldown Rate Limit (detik)</label>
+                                                <input type="number" min="0" max="600" id="chatbot_handoff_rate_limit" name="chatbot_handoff_rate_limit" class="form-control" value="{$config.chatbot_handoff_rate_limit|default:15|escape}">
+                                                <span class="chatbot-helper">Cooldown lokal ketika gateway membalas <code>RATE_LIMIT</code>. 0 = default (15 detik).</span>
+                                            </div>
                                             <div class="form-group" style="grid-column: 1 / -1;">
                                                 <label for="chatbot_handoff_notice">Notice Message</label>
                                                 <textarea id="chatbot_handoff_notice" name="chatbot_handoff_notice" class="form-control" placeholder="Permintaan terkirim. Admin akan segera bergabung.">{$config.chatbot_handoff_notice|escape}</textarea>
