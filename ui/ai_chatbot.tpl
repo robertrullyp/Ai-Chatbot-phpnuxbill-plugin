@@ -1313,13 +1313,16 @@ document.addEventListener('DOMContentLoaded', () => {
     let handoffExpiresAt = 0;
     let handoffExpiryTimer = null;
     let lastInboundMessage = null;
+    let lastHandoffNotice = null;
     const inboundIdCache = new Set();
     const inboundIdQueue = [];
     const inboundIdLimit = 120;
     let baseStatusState = 'checking';
     let baseStatusLabel = 'Checking...';
-    let sseSource = null;
-    let sseInfo = null;
+    let streamSocket = null;
+    let streamInfo = null;
+    let streamReconnectTimer = null;
+    const handoffAckWaiters = new Map();
 
     const visitorIdKey = 'ai_chatbot_visitor_id';
     const sessionIdKey = 'ai_chatbot_session_id';
@@ -1445,7 +1448,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 root.dataset.handoffActive = '0';
             }
             updateHandoffUI();
-            stopSse(true);
+            stopStream(true);
             handoffExpiresAt = 0;
             lastInboundMessage = null;
             clearHandoffStorage();
@@ -1464,7 +1467,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateHandoffUI();
         if (!handoffActive) {
-            stopSse(true);
+            stopStream(true);
             handoffExpiresAt = 0;
             lastInboundMessage = null;
             handoffBound = false;
@@ -1503,14 +1506,97 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function stopSse(clearInfo = false) {
-        if (sseSource) {
-            sseSource.close();
-            sseSource = null;
+    function stopStream(clearInfo = false) {
+        if (streamReconnectTimer) {
+            clearTimeout(streamReconnectTimer);
+            streamReconnectTimer = null;
+        }
+        clearHandoffAckWaiters('STREAM_CLOSED');
+        if (streamSocket) {
+            try {
+                streamSocket.close();
+            } catch (error) {
+                // ignore close errors
+            }
+            streamSocket = null;
         }
         if (clearInfo) {
-            sseInfo = null;
+            streamInfo = null;
         }
+    }
+
+    function clearHandoffAckWaiters(reason) {
+        if (!handoffAckWaiters || handoffAckWaiters.size === 0) {
+            return;
+        }
+        handoffAckWaiters.forEach((waiter, id) => {
+            if (waiter && waiter.timer) {
+                clearTimeout(waiter.timer);
+            }
+            if (waiter && typeof waiter.resolve === 'function') {
+                waiter.resolve({ ok: false, error: reason || 'STREAM_CLOSED', id: id });
+            }
+        });
+        handoffAckWaiters.clear();
+    }
+
+    function canUseHandoffWs() {
+        return streamSocket && streamSocket.readyState === WebSocket.OPEN;
+    }
+
+    function sendHandoffWsMessage(text, timeoutMs) {
+        if (!canUseHandoffWs()) {
+            return Promise.resolve({ ok: false, error: 'STREAM_NOT_READY' });
+        }
+        const requestId = uuidv4();
+        const payload = {
+            type: 'handoff:send',
+            id: requestId,
+            text: text,
+            chatInput: text,
+            handoff_timeout_sec: handoffTimeout,
+            handoff_reason: handoffReason
+        };
+        return new Promise((resolve) => {
+            const timer = setTimeout(() => {
+                handoffAckWaiters.delete(requestId);
+                resolve({ ok: false, timeout: true, id: requestId });
+            }, timeoutMs);
+            handoffAckWaiters.set(requestId, { resolve: resolve, timer: timer });
+            try {
+                streamSocket.send(JSON.stringify(payload));
+            } catch (error) {
+                clearTimeout(timer);
+                handoffAckWaiters.delete(requestId);
+                resolve({ ok: false, error: 'SEND_FAILED', id: requestId });
+            }
+        });
+    }
+
+    function sendHandoffOffWs(reasonText) {
+        if (!canUseHandoffWs()) {
+            return Promise.resolve({ ok: false, error: 'STREAM_NOT_READY' });
+        }
+        const requestId = uuidv4();
+        const payload = {
+            type: 'handoff:off',
+            id: requestId,
+            text: reasonText || 'Sesi handoff diakhiri oleh user.'
+        };
+        return new Promise((resolve) => {
+            const timer = setTimeout(() => {
+                handoffAckWaiters.delete(requestId);
+                resolve({ ok: false, timeout: true, id: requestId });
+            }, Math.max(8000, Math.floor(proxyTimeoutMs * 0.6)));
+            handoffAckWaiters.set(requestId, { resolve: resolve, timer: timer });
+            try {
+                streamSocket.send(JSON.stringify(payload));
+            } catch (error) {
+                clearTimeout(timer);
+                handoffAckWaiters.delete(requestId);
+                resolve({ ok: false, error: 'SEND_FAILED', id: requestId });
+            }
+        });
     }
 
     function persistHandoffState() {
@@ -1542,6 +1628,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             // ignore storage errors
         }
+        handoffSessionId = null;
     }
 
     function refreshHandoffExpiry() {
@@ -1569,8 +1656,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (Date.now() >= handoffExpiresAt) {
+                const sessionToClose = getHandoffSessionId();
+                addHandoffNotice('Sesi handoff berakhir karena timeout.');
                 setHandoffActive(false);
-                sendHandoffOff();
+                sendHandoffOff(sessionToClose);
             }
         }, 30000);
     }
@@ -1667,12 +1756,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function handleSseMessage(event) {
-        const payload = parseJsonSafe(event.data);
+    function handleStreamPayload(payload) {
         if (!payload || typeof payload !== 'object') {
             return;
         }
-        debugLog('SSE message', payload);
+        debugLog('Handoff stream message', payload);
         if (!handoffActive) {
             return;
         }
@@ -1680,9 +1768,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (eventSessionId) {
             setHandoffSessionId(eventSessionId);
         }
+        const ackEvent = payload.event || payload.type || '';
+        if (ackEvent === 'handoff_ack') {
+            const ackId = payload.id || payload.request_id || payload.requestId || null;
+            if (ackId && handoffAckWaiters.has(ackId)) {
+                const waiter = handoffAckWaiters.get(ackId);
+                if (waiter && waiter.timer) {
+                    clearTimeout(waiter.timer);
+                }
+                handoffAckWaiters.delete(ackId);
+                if (waiter && typeof waiter.resolve === 'function') {
+                    waiter.resolve(payload);
+                }
+            }
+            return;
+        }
+        if (ackEvent === 'handoff:ready' || ackEvent === 'pong') {
+            return;
+        }
         if (payload.event === 'handoff_off') {
             setHandoffActive(false);
-            stopSse(true);
+            stopStream(true);
             return;
         }
         if (payload.direction && payload.direction !== 'inbound') {
@@ -1707,24 +1813,195 @@ document.addEventListener('DOMContentLoaded', () => {
         trackInboundMessage(text, inboundId);
     }
 
-    function handleSseHandoffOff() {
-        debugLog('SSE handoff_off event');
-        setHandoffActive(false);
-        stopSse(true);
+    function appendStreamParams(url, params) {
+        try {
+            const parsed = new URL(url, window.location.href);
+            Object.keys(params).forEach((key) => {
+                const value = params[key];
+                if (value !== undefined && value !== null && value !== '') {
+                    parsed.searchParams.set(key, value);
+                }
+            });
+            return parsed.toString();
+        } catch (error) {
+            return url;
+        }
     }
 
-    function handleSseError() {
-        if (!sseSource) {
+    function resolveStreamUrl(transport, token, sessionId) {
+        const direct = transport.ws_url || transport.wsUrl || transport.url;
+        if (direct) {
+            return appendStreamParams(String(direct), { token: token, session_id: sessionId });
+        }
+        const endpoint = transport.endpoint ? String(transport.endpoint) : '';
+        if (!endpoint) {
+            return '';
+        }
+        let url = endpoint;
+        const hasWsScheme = /^wss?:\/\//i.test(endpoint);
+        if (!hasWsScheme) {
+            const base = transport.base_url || transport.base || '';
+            if (base) {
+                const wsBase = String(base)
+                    .replace(/^http:/i, 'ws:')
+                    .replace(/^https:/i, 'wss:')
+                    .replace(/\/$/, '');
+                url = wsBase + '/' + endpoint.replace(/^\//, '');
+            } else if (endpoint.startsWith('/')) {
+                const wsScheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                url = wsScheme + '//' + window.location.host + endpoint;
+            }
+        }
+        if (!url) {
+            return '';
+        }
+        return appendStreamParams(url, { token: token, session_id: sessionId });
+    }
+
+    function handleStreamMessage(event) {
+        if (!event) {
             return;
         }
-        debugLog('SSE error', { readyState: sseSource.readyState });
-        if (sseSource.readyState === EventSource.CLOSED) {
-            stopSse(false);
-            syncHandoffStatus();
+        const raw = event.data;
+        if (typeof raw === 'string') {
+            const payload = parseJsonSafe(raw);
+            if (payload) {
+                handleStreamPayload(payload);
+            }
+            return;
+        }
+        if (raw && typeof raw === 'object' && typeof raw.text === 'function') {
+            raw.text().then((text) => {
+                const payload = parseJsonSafe(text);
+                if (payload) {
+                    handleStreamPayload(payload);
+                }
+            }).catch(() => {});
+            return;
+        }
+        if (raw instanceof ArrayBuffer) {
+            try {
+                const text = new TextDecoder().decode(raw);
+                const payload = parseJsonSafe(text);
+                if (payload) {
+                    handleStreamPayload(payload);
+                }
+            } catch (error) {
+                // ignore parse errors
+            }
         }
     }
 
-    function startSse(transport) {
+    function scheduleStreamReconnect() {
+        if (streamReconnectTimer || !streamInfo) {
+            return;
+        }
+        streamReconnectTimer = setTimeout(() => {
+            streamReconnectTimer = null;
+            if (!handoffActive || !streamInfo) {
+                return;
+            }
+            if (streamSocket && streamSocket.readyState === WebSocket.OPEN) {
+                return;
+            }
+            openStreamSocket(streamInfo.url, streamInfo.sessionId);
+        }, 2500);
+    }
+
+    function handleStreamClose() {
+        debugLog('Handoff stream closed');
+        clearHandoffAckWaiters('STREAM_CLOSED');
+        if (!handoffActive) {
+            return;
+        }
+        syncHandoffStatus();
+        scheduleStreamReconnect();
+    }
+
+    function handleStreamError(event) {
+        debugLog('Handoff stream error', event);
+    }
+
+    function waitForStreamReady(timeoutMs) {
+        if (canUseHandoffWs()) {
+            return Promise.resolve(true);
+        }
+        if (!streamInfo) {
+            return Promise.resolve(false);
+        }
+        if (!streamSocket || streamSocket.readyState === WebSocket.CLOSED) {
+            openStreamSocket(streamInfo.url, streamInfo.sessionId);
+        }
+        if (!streamSocket) {
+            return Promise.resolve(false);
+        }
+        if (streamSocket.readyState === WebSocket.OPEN) {
+            return Promise.resolve(true);
+        }
+        if (streamSocket.readyState !== WebSocket.CONNECTING) {
+            return Promise.resolve(false);
+        }
+        return new Promise((resolve) => {
+            let settled = false;
+            const timer = setTimeout(() => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                cleanup();
+                resolve(false);
+            }, timeoutMs);
+            const handleOpen = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                cleanup();
+                resolve(true);
+            };
+            const handleClose = () => {
+                if (settled) {
+                    return;
+                }
+                settled = true;
+                cleanup();
+                resolve(false);
+            };
+            const cleanup = () => {
+                clearTimeout(timer);
+                if (!streamSocket) {
+                    return;
+                }
+                streamSocket.removeEventListener('open', handleOpen);
+                streamSocket.removeEventListener('close', handleClose);
+            };
+            streamSocket.addEventListener('open', handleOpen);
+            streamSocket.addEventListener('close', handleClose);
+        });
+    }
+
+    function openStreamSocket(url, sessionId) {
+        if (!url) {
+            return;
+        }
+        stopStream(false);
+        streamInfo = { url: url, sessionId: sessionId };
+        try {
+            streamSocket = new WebSocket(url);
+        } catch (error) {
+            streamSocket = null;
+            return;
+        }
+        debugLog('Handoff stream start', { sessionId: sessionId, url: url });
+        streamSocket.addEventListener('open', () => {
+            debugLog('Handoff stream open');
+        });
+        streamSocket.addEventListener('message', handleStreamMessage);
+        streamSocket.addEventListener('close', handleStreamClose);
+        streamSocket.addEventListener('error', handleStreamError);
+    }
+
+    function startHandoffStream(transport) {
         if (!transport || typeof transport !== 'object') {
             return;
         }
@@ -1732,7 +2009,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const mode = (transport.mode || '').toString().toLowerCase();
-        if (mode !== 'sse') {
+        if (mode !== 'ws') {
             return;
         }
         const token = transport.token ? String(transport.token) : '';
@@ -1744,25 +2021,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!token || !sessionId) {
             return;
         }
-        if (sseInfo && sseInfo.token === token && sseInfo.sessionId === sessionId && sseSource) {
+        const url = resolveStreamUrl(transport, token, sessionId);
+        if (!url) {
             return;
         }
-        sseInfo = { token: token, sessionId: sessionId };
-        const url = streamUrl + '&session_id=' + encodeURIComponent(sessionId) + '&token=' + encodeURIComponent(token);
-        stopSse(false);
-        try {
-            sseSource = new EventSource(url);
-        } catch (error) {
-            sseSource = null;
-            return;
+        if (streamInfo && streamInfo.url === url && streamSocket) {
+            if (streamSocket.readyState === WebSocket.OPEN || streamSocket.readyState === WebSocket.CONNECTING) {
+                return;
+            }
         }
-        debugLog('SSE start', { sessionId: sessionId, url: url });
-        sseSource.addEventListener('open', () => {
-            debugLog('SSE open');
-        });
-        sseSource.addEventListener('message', handleSseMessage);
-        sseSource.addEventListener('handoff_off', handleSseHandoffOff);
-        sseSource.addEventListener('error', handleSseError);
+        openStreamSocket(url, sessionId);
     }
 
     function syncTransportFromResponse(data) {
@@ -1777,7 +2045,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         debugLog('Transport update', transport);
-        startSse(transport);
+        startHandoffStream(transport);
     }
 
     function syncHandoffStateFromResponse(data) {
@@ -1810,14 +2078,21 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         if (info.off || info.active === false) {
+            if (handoffActive) {
+                addHandoffNotice('Sesi handoff telah berakhir.');
+            }
             setHandoffActive(false, { bound: false });
             return;
         }
         if (info.timeout) {
             const wasActive = handoffActive;
+            const sessionToClose = getHandoffSessionId();
+            if (handoffActive) {
+                addHandoffNotice('Sesi handoff berakhir karena timeout.');
+            }
             setHandoffActive(false, { bound: false });
             if (wasActive) {
-                sendHandoffOff();
+                sendHandoffOff(sessionToClose);
             }
         } else if (info.bound || info.active === true) {
             const expiresAt = typeof info.expires_at === 'number' ? info.expires_at : 0;
@@ -1980,6 +2255,62 @@ document.addEventListener('DOMContentLoaded', () => {
             const statusLabel = item.attempts > 1 ? 'Mengirim ulang…' : 'Mengirim…';
             setMessageStatus(item.element, 'sending', statusLabel);
             try {
+                const streamReadyTimeoutMs = Math.min(5000, Math.max(1500, Math.floor(queueTimeoutMs * 0.4)));
+                const streamReady = streamInfo ? await waitForStreamReady(streamReadyTimeoutMs) : false;
+                if (streamReady && canUseHandoffWs()) {
+                    const wsResult = await sendHandoffWsMessage(item.text, queueTimeoutMs);
+                    const wsTimeout = wsResult && wsResult.timeout;
+                    const wsData = wsResult && wsResult.data && typeof wsResult.data === 'object' ? wsResult.data : null;
+                    if (wsData) {
+                        syncHandoffStateFromResponse(wsData);
+                        syncTransportFromResponse(wsData);
+                    }
+                    if (wsResult && wsResult.ok) {
+                        const botResponse = wsData ? extractBotMessage(wsData) : '';
+                        const finalText = (typeof botResponse === 'string' ? botResponse : '').trim();
+                        const handoffInfo = wsData && typeof wsData === 'object' ? wsData.handoff : null;
+                        const isForwarded = handoffInfo && handoffInfo.forwarded;
+
+                        if (handoffInfo && handoffInfo.from_admin) {
+                            handoffBound = true;
+                            updateHandoffUI();
+                        }
+
+                        setMessageStatus(item.element, 'sent', 'Terkirim');
+
+                        if (!isForwarded && wsData) {
+                            const safeText = finalText !== '' ? finalText : 'Maaf, saya tidak dapat memproses permintaan tersebut.';
+                            const inboundId = handoffInfo && handoffInfo.message_id ? handoffInfo.message_id : null;
+                            const isDup = handoffInfo && handoffInfo.from_admin ? isDuplicateInbound(safeText, inboundId) : false;
+                            if (!isDup) {
+                                addMessage('bot', safeText);
+                                history.push({ sender: 'bot', text: safeText });
+                                saveHistory();
+                                if (handoffInfo && handoffInfo.from_admin) {
+                                    trackInboundMessage(safeText, inboundId);
+                                }
+                            }
+                        }
+                        return;
+                    }
+
+                    const wsStatus = wsResult && wsResult.status ? Number(wsResult.status) : 0;
+                    const wsErrorMessage = wsTimeout
+                        ? 'Koneksi timeout. Silakan coba lagi.'
+                        : (wsData && wsData.error ? wsData.error : (wsResult && wsResult.error ? wsResult.error : 'Terjadi kesalahan saat menghubungi server.'));
+                    if ((wsTimeout || wsStatus >= 500 || (wsResult && wsResult.error === 'REQUEST_FAILED')) && item.attempts < maxAttempts) {
+                        await new Promise((resolve) => setTimeout(resolve, 500 * item.attempts));
+                        continue;
+                    }
+                    setMessageStatus(item.element, 'failed', 'Gagal');
+                    addMessage('bot', 'Error: ' + wsErrorMessage);
+                    return;
+                }
+
+                if (streamInfo && !streamReady) {
+                    scheduleStreamReconnect();
+                }
+
                 const requestId = uuidv4();
                 const requestPayload = {
                     route: 'handoff',
@@ -2357,6 +2688,21 @@ document.addEventListener('DOMContentLoaded', () => {
         return messageDiv;
     }
 
+    function addHandoffNotice(text) {
+        const message = (text || '').trim();
+        if (message === '') {
+            return;
+        }
+        const now = Date.now();
+        if (lastHandoffNotice && lastHandoffNotice.text === message && now - lastHandoffNotice.at < 2500) {
+            return;
+        }
+        lastHandoffNotice = { text: message, at: now };
+        addMessage('bot', message);
+        history.push({ sender: 'bot', text: message });
+        saveHistory();
+    }
+
     function restoreHandoffState() {
         if (!handoffEnabled || !handoffStorageKey) {
             return;
@@ -2376,18 +2722,19 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 parsed = null;
             }
-            const storedSessionId = parsed && typeof parsed.session_id === 'string'
-                ? parsed.session_id
-                : (parsed && typeof parsed.sessionId === 'string' ? parsed.sessionId : '');
-            if (storedSessionId) {
-                setHandoffSessionId(storedSessionId, false);
-            }
             const expiresAt = parsed && typeof parsed.expires_at === 'number' ? parsed.expires_at : 0;
             if (expiresAt > 0 && expiresAt > Date.now()) {
+                const storedSessionId = parsed && typeof parsed.session_id === 'string'
+                    ? parsed.session_id
+                    : (parsed && typeof parsed.sessionId === 'string' ? parsed.sessionId : '');
+                if (storedSessionId) {
+                    setHandoffSessionId(storedSessionId, false);
+                }
                 setHandoffActive(true, { bound: false, expiresAt: expiresAt });
                 scheduleHandoffExpiryCheck();
             } else {
                 clearHandoffStorage();
+                setHandoffSessionId(null, false);
             }
         } catch (error) {
             // ignore storage errors
@@ -3158,12 +3505,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function sendHandoffOff() {
-        if (!handoffEnabled || !chatConfig.proxy_url) {
+    async function sendHandoffOff(sessionOverride) {
+        if (!handoffEnabled) {
             return;
         }
-        const handoffSession = getHandoffSessionId();
+        const handoffSession = sessionOverride || getHandoffSessionId();
         if (!handoffSession) {
+            return;
+        }
+        if (canUseHandoffWs()) {
+            const wsResult = await sendHandoffOffWs('Sesi handoff diakhiri oleh user.');
+            const wsData = wsResult && wsResult.data && typeof wsResult.data === 'object' ? wsResult.data : null;
+            if (wsData) {
+                syncHandoffStateFromResponse(wsData);
+                syncTransportFromResponse(wsData);
+            }
+            if (wsResult && wsResult.ok) {
+                return;
+            }
+        }
+        if (!chatConfig.proxy_url) {
             return;
         }
         try {
@@ -3282,9 +3643,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (handoffButton) {
         handoffButton.addEventListener('click', (event) => {
             event.preventDefault();
-            if (handoffActive) {
+            const sessionToClose = handoffActive ? getHandoffSessionId() : (handoffSessionId || '');
+            if (handoffActive || sessionToClose) {
+                if (handoffActive) {
+                    addHandoffNotice('Sesi handoff diakhiri oleh user.');
+                }
                 setHandoffActive(false);
-                sendHandoffOff();
+                sendHandoffOff(sessionToClose);
                 return;
             }
             sendHandoffRequest();
@@ -3374,6 +3739,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.removeEventListener('click', handleDocumentClick);
         document.removeEventListener('keydown', handleKeydown);
         window.removeEventListener('resize', updateAutoHeight);
+        stopStream(true);
     });
 
     loadHistory();
