@@ -107,6 +107,7 @@ function ai_chatbot_defaults()
         'chatbot_handoff_enabled' => '0',
         'chatbot_handoff_label' => 'Chat dengan Admin',
         'chatbot_handoff_timeout' => '600',
+        'chatbot_handoff_rate_limit' => '15',
         'chatbot_handoff_reason' => 'chat_dengan_admin',
         'chatbot_handoff_notice' => 'Permintaan terkirim. Admin akan segera bergabung.',
         'chatbot_frame_mode' => 'fixed',
@@ -190,6 +191,7 @@ function ai_chatbot_section_field_map()
             'chatbot_handoff_enabled',
             'chatbot_handoff_label',
             'chatbot_handoff_timeout',
+            'chatbot_handoff_rate_limit',
             'chatbot_handoff_reason',
             'chatbot_handoff_notice',
             'chatbot_auth_type',
@@ -219,6 +221,7 @@ function ai_chatbot_section_field_map()
             'chatbot_handoff_enabled',
             'chatbot_handoff_label',
             'chatbot_handoff_timeout',
+            'chatbot_handoff_rate_limit',
             'chatbot_handoff_reason',
             'chatbot_handoff_notice',
             'chatbot_frame_mode',
@@ -1533,6 +1536,15 @@ function ai_chatbot_sanitize_setting($key, $value)
             }
             return (string) $n;
 
+        case 'chatbot_handoff_rate_limit':
+            $n = (int) $value;
+            if ($n < 0) {
+                $n = 0;
+            } elseif ($n > 600) {
+                $n = 600;
+            }
+            return (string) $n;
+
         case 'chatbot_handoff_reason':
             return ai_chatbot_limit_length($value, 120);
 
@@ -2147,7 +2159,7 @@ function ai_chatbot_run_proxy()
     if (array_key_exists('handoff', $payload)) {
         $handoff_flag = filter_var($payload['handoff'], FILTER_VALIDATE_BOOLEAN);
     }
-    $handoff_request = in_array($route, ['handoff', 'handoff_off', 'handoff_timeout', 'handoff_status', 'handoff-status', 'handoff_state', 'handoff-state', 'admin'], true) || $handoff_flag;
+    $handoff_request = in_array($route, ['handoff', 'handoff_off', 'handoff_timeout', 'handoff_status', 'handoff-status', 'handoff_state', 'handoff-state', 'handoff_poll', 'handoff-poll', 'handoff_inbox', 'handoff-inbox', 'admin'], true) || $handoff_flag;
 
     $chat_input = isset($payload['chatInput']) ? trim((string) $payload['chatInput']) : '';
     $payload_text = isset($payload['text']) ? trim((string) $payload['text']) : '';
@@ -2726,4 +2738,3 @@ function ai_chatbot_plugin_uninstall($purge_config = true)
         }
     }
 }
-
