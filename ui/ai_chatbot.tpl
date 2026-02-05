@@ -1,4154 +1,1669 @@
-{* Smarty *}
-{assign var=chatbot value=$_c}
-{assign var=chatbot_title value=$chatbot.chatbot_title|default:'AI Chat'}
-{assign var=button_label value=$chatbot.chatbot_button_label|trim}
-{if $button_label == ''}
-    {assign var=button_label value=$chatbot_title}
-{/if}
-{assign var=button_label value=$button_label|default:'AI Chat'}
-{assign var=button_side value=$chatbot.chatbot_button_side|default:'right'}
-{assign var=frame_width value=$chatbot.chatbot_frame_width|default:340|intval}
-{assign var=frame_height value=$chatbot.chatbot_frame_height|default:460|intval}
-{assign var=frame_mode value=$chatbot.chatbot_frame_mode|default:'fixed'}
-{assign var=chatbot_enabled value=$chatbot.chatbot_enabled|default:'0'}
-{assign var=handoff_enabled value=$chatbot.chatbot_handoff_enabled|default:'0'}
-{assign var=handoff_label value=$chatbot.chatbot_handoff_label|trim}
-{if $handoff_label == ''}{assign var=handoff_label value='Chat dengan Admin'}{/if}
-{assign var=bot_bg value=$chatbot.chatbot_bubble_bot_bg|trim}
-{if $bot_bg == ''}{assign var=bot_bg value='var(--chatbot-surface)'}{/if}
-{assign var=bot_text value=$chatbot.chatbot_bubble_bot_text|trim}
-{if $bot_text == ''}{assign var=bot_text value='var(--chatbot-text)'}{/if}
-{assign var=bot_border value=$chatbot.chatbot_bubble_bot_border|trim}
-{if $bot_border == ''}{assign var=bot_border value='var(--chatbot-bubble-border)'}{/if}
-{assign var=user_bg value=$chatbot.chatbot_bubble_user_bg|trim}
-{if $user_bg == ''}{assign var=user_bg value='linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-primary-strong))'}{/if}
-{assign var=user_text value=$chatbot.chatbot_bubble_user_text|trim}
-{if $user_text == ''}{assign var=user_text value='#ffffff'}{/if}
-{assign var=user_border value=$chatbot.chatbot_bubble_user_border|trim}
-{if $user_border == ''}{assign var=user_border value='transparent'}{/if}
-{assign var=message_font value=$chatbot.chatbot_message_font_family|trim}
-{if $message_font == ''}{assign var=message_font value='inherit'}{/if}
-{assign var=header_bg value=$chatbot.chatbot_header_bg|trim}
-{if $header_bg == ''}{assign var=header_bg value='var(--chatbot-header-bg-default)'}{/if}
-{assign var=header_text value=$chatbot.chatbot_header_text|trim}
-{if $header_text == ''}{assign var=header_text value='var(--chatbot-header-text-default)'}{/if}
-{assign var=launcher_bg value=$chatbot.chatbot_launcher_bg|trim}
-{if $launcher_bg == ''}{assign var=launcher_bg value='var(--chatbot-launcher-bg-default)'}{/if}
-{assign var=launcher_text value=$chatbot.chatbot_launcher_text|trim}
-{if $launcher_text == ''}{assign var=launcher_text value='var(--chatbot-launcher-text-default)'}{/if}
-{assign var=send_bg value=$chatbot.chatbot_send_bg|trim}
-{if $send_bg == ''}{assign var=send_bg value='var(--chatbot-send-bg-default)'}{/if}
-{assign var=send_text value=$chatbot.chatbot_send_text|trim}
-{if $send_text == ''}{assign var=send_text value='var(--chatbot-send-text-default)'}{/if}
-{assign var=frame_bg value=$chatbot.chatbot_frame_bg|trim}
-{if $frame_bg == ''}{assign var=frame_bg value='var(--chatbot-frame-bg-default)'}{/if}
-{assign var=messages_bg value=$chatbot.chatbot_messages_bg|trim}
-{if $messages_bg == ''}{assign var=messages_bg value='var(--chatbot-messages-bg-default)'}{/if}
-{assign var=input_bg value=$chatbot.chatbot_input_bg|trim}
-{if $input_bg == ''}{assign var=input_bg value='var(--chatbot-input-bg-default)'}{/if}
-{assign var=input_text value=$chatbot.chatbot_input_text|trim}
-{if $input_text == ''}{assign var=input_text value='var(--chatbot-input-text-default)'}{/if}
-{assign var=input_border value=$chatbot.chatbot_input_border|trim}
-{if $input_border == ''}{assign var=input_border value='var(--chatbot-input-border-default)'}{/if}
-{assign var=input_area_bg value=$chatbot.chatbot_input_area_bg|trim}
-{if $input_area_bg == ''}{assign var=input_area_bg value='var(--chatbot-input-area-bg-default)'}{/if}
+{include file="admin/header.tpl"}
 
+{assign var=is_enabled value=($config.chatbot_enabled eq '1')}
+
+{literal}
 <style>
-    .ai-chatbot-root {
-        --chatbot-primary: #0d9488;
-        --chatbot-primary-strong: #0f766e;
-        --chatbot-accent: #06b6d4;
-        --chatbot-bg: #f1f6f8;
+    .chatbot-panel {
+        --chatbot-accent: #2563eb;
+        --chatbot-accent-soft: rgba(37, 99, 235, 0.12);
         --chatbot-surface: #ffffff;
+        --chatbot-surface-muted: #f8fafc;
+        --chatbot-border: rgba(148, 163, 184, 0.35);
+        --chatbot-border-strong: rgba(148, 163, 184, 0.6);
         --chatbot-text: #0f172a;
-        --chatbot-muted: #6b7280;
-        --chatbot-radius: 18px;
-        --chatbot-header-bg-default: linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-accent));
-        --chatbot-header-text-default: #ffffff;
-        --chatbot-launcher-bg-default: linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-primary-strong));
-        --chatbot-launcher-text-default: #ffffff;
-        --chatbot-send-bg-default: linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-accent));
-        --chatbot-send-text-default: #ffffff;
-        --chatbot-frame-bg-default: #ffffff;
-        --chatbot-messages-bg-default: var(--chatbot-bg);
-        --chatbot-input-bg-default: #f8fafc;
-        --chatbot-input-text-default: var(--chatbot-text);
-        --chatbot-input-border-default: rgba(148, 163, 184, 0.45);
-        --chatbot-input-area-bg-default: rgba(255, 255, 255, 0.95);
-        --chatbot-bubble-border: rgba(226, 232, 240, 0.8);
-        --chatbot-bubble-radius: {$chatbot.chatbot_bubble_radius|default:14|intval}px;
-        --chatbot-bubble-padding-x: {$chatbot.chatbot_bubble_padding_x|default:14|intval}px;
-        --chatbot-bubble-padding-y: {$chatbot.chatbot_bubble_padding_y|default:10|intval}px;
-        --chatbot-bubble-font-size: {$chatbot.chatbot_bubble_font_size|default:14|intval}px;
-        --chatbot-bubble-line-height: {$chatbot.chatbot_bubble_line_height|default:'1.45'|escape};
-        --chatbot-bubble-max-width: {$chatbot.chatbot_bubble_max_width|default:80|intval}%;
-        --chatbot-bubble-bot-bg: {$bot_bg|escape};
-        --chatbot-bubble-bot-text: {$bot_text|escape};
-        --chatbot-bubble-bot-border: {$bot_border|escape};
-        --chatbot-bubble-user-bg: {$user_bg|escape};
-        --chatbot-bubble-user-text: {$user_text|escape};
-        --chatbot-bubble-user-border: {$user_border|escape};
-        --chatbot-message-font: {$message_font|escape};
-        --chatbot-header-bg: {$header_bg|escape};
-        --chatbot-header-text: {$header_text|escape};
-        --chatbot-launcher-bg: {$launcher_bg|escape};
-        --chatbot-launcher-text: {$launcher_text|escape};
-        --chatbot-send-bg: {$send_bg|escape};
-        --chatbot-send-text: {$send_text|escape};
-        --chatbot-frame-bg: {$frame_bg|escape};
-        --chatbot-messages-bg: {$messages_bg|escape};
-        --chatbot-input-bg: {$input_bg|escape};
-        --chatbot-input-text: {$input_text|escape};
-        --chatbot-input-border: {$input_border|escape};
-        --chatbot-input-area-bg: {$input_area_bg|escape};
-        --chatbot-input-area-padding-x: {$chatbot.chatbot_input_area_padding_x|default:14|intval}px;
-        --chatbot-input-area-padding-y: {$chatbot.chatbot_input_area_padding_y|default:12|intval}px;
-        --chatbot-input-area-blur: {$chatbot.chatbot_input_area_blur|default:8|intval}px;
-        --chatbot-input-bg-focus: var(--chatbot-input-bg);
-        --chatbot-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
-        --chatbot-ring: 0 0 0 3px rgba(13, 148, 136, 0.2);
-        --chatbot-side-spacing: 24px;
-        --chatbot-z-index: 1050;
-        position: fixed;
-        bottom: var(--chatbot-side-spacing);
-        display: flex;
-        flex-direction: column-reverse;
-        align-items: flex-end;
-        gap: 12px;
-        z-index: var(--chatbot-z-index);
+        --chatbot-muted: #64748b;
+        --chatbot-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+    }
+    .dark-mode .chatbot-panel {
+        --chatbot-accent: #3b82f6;
+        --chatbot-accent-soft: rgba(59, 130, 246, 0.2);
+        --chatbot-surface: #0f172a;
+        --chatbot-surface-muted: #0b1526;
+        --chatbot-border: rgba(148, 163, 184, 0.2);
+        --chatbot-border-strong: rgba(148, 163, 184, 0.35);
+        --chatbot-text: #e2e8f0;
+        --chatbot-muted: #94a3b8;
+        --chatbot-shadow: 0 20px 44px rgba(2, 6, 23, 0.55);
     }
 
-    .ai-chatbot-root[data-enabled="0"] {
-        display: none;
+    .chatbot-settings-wrapper { position: relative; }
+    .chatbot-summary {
+        background: linear-gradient(135deg, var(--chatbot-accent-soft) 0%, #ffffff 60%);
+        border: 1px solid var(--chatbot-border);
+        border-radius: 16px;
+        padding: 22px 26px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+        animation: chatbot-rise 220ms ease-out both;
     }
-
-    .ai-chatbot-root--right {
-        right: var(--chatbot-side-spacing);
-        flex-direction: column-reverse;
-        align-items: flex-end;
+    .dark-mode .chatbot-summary {
+        background: linear-gradient(140deg, rgba(59, 130, 246, 0.18) 0%, rgba(15, 23, 42, 0.95) 60%);
+        box-shadow: 0 14px 32px rgba(2, 6, 23, 0.55);
     }
-
-    .ai-chatbot-root--left {
-        left: var(--chatbot-side-spacing);
-        flex-direction: column-reverse;
-        align-items: flex-start;
-    }
-
-    .ai-chatbot-button {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        background: var(--chatbot-launcher-bg);
-        color: var(--chatbot-launcher-text);
-        border: none;
-        border-radius: 999px;
-        padding: 0 22px;
-        height: 46px;
-        font-size: 15px;
-        font-weight: 600;
-        cursor: pointer;
-        box-shadow: 0 14px 26px rgba(13, 148, 136, 0.35);
-        transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .ai-chatbot-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 18px 36px rgba(14, 116, 144, 0.4);
-        filter: saturate(1.1);
-    }
-
-    .ai-chatbot-button:focus-visible {
-        outline: none;
-        box-shadow: var(--chatbot-ring);
-    }
-
-    .ai-chatbot-button::after {
-        content: "";
-        position: absolute;
-        top: -40%;
-        left: -10%;
-        width: 60%;
-        height: 180%;
-        background: radial-gradient(circle at center, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0));
-        opacity: 0.75;
-        transform: translateX(-40%) rotate(-12deg);
-        transition: transform 0.35s ease;
-        pointer-events: none;
-    }
-
-    .ai-chatbot-button:hover::after {
-        transform: translateX(40%) rotate(-12deg);
-    }
-
-    .ai-chatbot-button-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .ai-chatbot-button-text {
-        white-space: nowrap;
-    }
-
-    .ai-chatbot-unread {
-        position: absolute;
-        top: 4px;
-        right: 6px;
-        min-width: 18px;
-        height: 18px;
-        padding: 0 6px;
-        border-radius: 999px;
-        background: #ef4444;
-        color: #ffffff;
+    .chatbot-summary__top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: center; }
+    .chatbot-summary__label {
         font-size: 11px;
-        font-weight: 700;
-        line-height: 18px;
-        text-align: center;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 6px 14px rgba(15, 23, 42, 0.28);
-        pointer-events: none;
-    }
-
-    .ai-chatbot-unread.is-visible {
-        display: inline-flex;
-    }
-
-    .ai-chatbot-frame {
-        display: none;
-        flex-direction: column;
-        width: min(94vw, max({$frame_width}px, 420px));
-        height: min(78vh, max({$frame_height}px, 520px));
-        min-height: 460px;
-        background: var(--chatbot-frame-bg);
-        border-radius: var(--chatbot-radius);
-        box-shadow: var(--chatbot-shadow);
-        border: 1px solid rgba(148, 163, 184, 0.35);
-        overflow: hidden;
-        position: relative;
-        transform-origin: bottom center;
-    }
-
-    .ai-chatbot-frame[data-frame-mode="auto"] {
-        height: auto;
-        max-height: 80vh;
-        min-height: 460px;
-    }
-
-    .ai-chatbot-frame.is-open {
-        display: flex;
-        animation: chatbot-frame-in 220ms ease-out both;
-    }
-
-    .ai-chatbot-frame::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background:
-            radial-gradient(circle at 18% 15%, rgba(13, 148, 136, 0.08), transparent 46%),
-            radial-gradient(circle at 92% 18%, rgba(6, 182, 212, 0.08), transparent 46%);
-        opacity: 0.9;
-        pointer-events: none;
-    }
-
-    .chatbot-header {
-        background: var(--chatbot-header-bg);
-        color: var(--chatbot-header-text);
-        --chatbot-avatar-size: 34px;
-        padding: 12px 16px 10px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        position: relative;
-        z-index: 1;
-    }
-
-    .chatbot-header__info {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
-        min-width: 0;
-    }
-
-    .chatbot-header__title {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 700;
-        font-size: 16px;
-        line-height: 1.2;
-    }
-
-    .chatbot-header__text {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 2px;
-        min-width: 0;
-    }
-
-    .chatbot-header__name {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--chatbot-muted);
         display: block;
-        font-weight: 700;
-        font-size: 16px;
-        line-height: 1.2;
-    }
-
-    .chatbot-header__avatar {
-        width: var(--chatbot-avatar-size);
-        height: var(--chatbot-avatar-size);
-        aspect-ratio: 1 / 1;
-        border-radius: 50%;
-        object-fit: cover;
-        object-position: center;
-        display: block;
-        flex-shrink: 0;
-        cursor: zoom-in;
-        background: rgba(255, 255, 255, 0.85);
-        border: 2px solid rgba(255, 255, 255, 0.8);
-    }
-
-    .chatbot-header__avatar--placeholder {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--chatbot-primary-strong);
-        background: rgba(255, 255, 255, 0.9);
-        border: 2px solid rgba(255, 255, 255, 0.85);
-        cursor: default;
-    }
-
-    .chatbot-header__status {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-weight: 600;
-        font-size: 12px;
-        line-height: 1.2;
-        color: var(--chatbot-header-text);
-    }
-
-    .chatbot-header__status.is-handoff {
+        margin-bottom: 6px;
         font-weight: 700;
     }
-
-    .chatbot-header__status::before {
-        content: "";
-        width: 7px;
-        height: 7px;
-        border-radius: 999px;
-        background: #22c55e;
-        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+    .chatbot-summary__label--spaced { margin-top: 12px; }
+    .chatbot-summary__endpoint code {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.06);
+        color: var(--chatbot-text);
+        word-break: break-all;
     }
-
-    .chatbot-header__status[data-status="checking"]::before {
-        background: #f59e0b;
-        box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
-        animation: chatbot-status-pulse 1.4s ease-in-out infinite;
+    .dark-mode .chatbot-summary__endpoint code {
+        background: rgba(2, 6, 23, 0.5);
+        border: 1px solid var(--chatbot-border);
+        color: var(--chatbot-text);
     }
-
-    .chatbot-header__status[data-status="offline"]::before {
-        background: #ef4444;
-        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
-    }
-
-    .chatbot-header__actions {
+    .chatbot-summary__description { margin: 12px 0 0; color: #475569; font-size: 13px; line-height: 1.6; max-width: 720px; }
+    .dark-mode .chatbot-summary__description { color: #cbd5f5; }
+    .chatbot-status {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        flex-shrink: 0;
-    }
-
-    .chatbot-handoff {
-        background: rgba(255, 255, 255, 0.18);
-        border: 1px solid rgba(255, 255, 255, 0.35);
-        color: var(--chatbot-header-text);
-        padding: 6px 12px;
+        padding: 4px 12px;
         border-radius: 999px;
+        font-weight: 600;
         font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-        line-height: 1;
-        transition: background 0.25s ease, transform 0.25s ease, opacity 0.25s ease;
+    }
+    .chatbot-status::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: currentColor; display: inline-block; }
+    .chatbot-status--on { background: rgba(16, 185, 129, 0.12); color: #0f766e; }
+    .chatbot-status--off { background: rgba(244, 63, 94, 0.12); color: #be123c; }
+    .dark-mode .chatbot-status {
+        border: 1px solid transparent;
+        text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+    }
+    .dark-mode .chatbot-status--on {
+        background: rgba(16, 185, 129, 0.35);
+        color: #ecfdf5;
+        border-color: rgba(16, 185, 129, 0.55);
+    }
+    .dark-mode .chatbot-status--off {
+        background: rgba(248, 113, 113, 0.35);
+        color: #fff1f2;
+        border-color: rgba(248, 113, 113, 0.55);
     }
 
-    .chatbot-handoff:hover {
-        background: rgba(255, 255, 255, 0.32);
-        transform: translateY(-1px);
-    }
-
-    .chatbot-handoff:disabled {
-        cursor: not-allowed;
-        opacity: 0.6;
-        transform: none;
-    }
-
-    @keyframes chatbot-status-pulse {
-        0% {
-            transform: scale(1);
-            opacity: 1;
-        }
-        50% {
-            transform: scale(1.3);
-            opacity: 0.7;
-        }
-        100% {
-            transform: scale(1);
-            opacity: 1;
-        }
-    }
-
-    .chatbot-close {
-        background: rgba(255, 255, 255, 0.18);
-        border: none;
-        color: var(--chatbot-header-text);
-        width: 34px;
-        height: 34px;
-        min-width: 34px;
-        min-height: 34px;
-        aspect-ratio: 1 / 1;
-        padding: 0;
-        border-radius: 50%;
-        font-size: 20px;
-        line-height: 1;
-        cursor: pointer;
-        display: inline-flex;
-        justify-content: center;
-        align-items: center;
-        transition: background-color 0.25s ease, transform 0.25s ease;
-    }
-
-    .chatbot-close:hover {
-        background: rgba(255, 255, 255, 0.35);
-        transform: scale(1.05);
-    }
-
-    .chatbot-close:focus-visible {
-        outline: 2px solid rgba(255, 255, 255, 0.6);
-        outline-offset: 2px;
-    }
-
-    .chatbot-messages {
-        flex: 1;
-        padding: 16px 16px 12px;
-        overflow-y: auto;
-        background: var(--chatbot-messages-bg);
+    .chatbot-tabs {
         display: flex;
-        flex-direction: column;
-        gap: 12px;
-        scroll-behavior: smooth;
-        position: relative;
-        z-index: 1;
-        min-height: 240px;
+        flex-wrap: wrap;
+        gap: 8px;
+        border: 1px solid var(--chatbot-border);
+        border-radius: 12px;
+        padding: 6px;
+        background: var(--chatbot-surface-muted);
+        margin-bottom: 18px;
     }
-
-    .chatbot-messages::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .chatbot-messages::-webkit-scrollbar-thumb {
-        background: rgba(100, 116, 139, 0.35);
-        border-radius: 999px;
-    }
-
-    .chatbot-scroll-bottom {
-        position: absolute;
-        right: 12px;
-        bottom: 68px;
-        height: 30px;
-        min-height: 30px;
-        max-height: 30px;
-        width: 128px;
-        min-width: 96px;
-        border-radius: 999px;
-        border: none;
-        background: rgba(15, 23, 42, 0.08);
-        color: var(--chatbot-text);
-        box-shadow: 0 6px 12px rgba(15, 23, 42, 0.12);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        padding: 0 12px;
-        line-height: 1;
-        opacity: 0;
-        pointer-events: none;
-        transform: translateY(4px);
-        transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
-        z-index: 2;
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        top: auto;
-    }
-
-    .chatbot-scroll-bottom svg {
-        width: 12px;
-        height: 12px;
-        flex-shrink: 0;
-    }
-
-    .chatbot-scroll-bottom__label {
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-    }
-
-    .chatbot-scroll-bottom.is-visible {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translateY(0);
-    }
-
-    .chatbot-scroll-bottom:hover {
-        background: rgba(15, 23, 42, 0.16);
-    }
-
-    body.dark-mode .chatbot-scroll-bottom,
-    .dark-mode .chatbot-scroll-bottom,
-    [data-theme="dark"] .chatbot-scroll-bottom {
-        background: rgba(148, 163, 184, 0.16);
-        color: #e2e8f0;
-    }
-
-    body.dark-mode .chatbot-scroll-bottom:hover,
-    .dark-mode .chatbot-scroll-bottom:hover,
-    [data-theme="dark"] .chatbot-scroll-bottom:hover {
-        background: rgba(148, 163, 184, 0.28);
-    }
-
-    .chatbot-message {
-        display: flex;
-        max-width: var(--chatbot-bubble-max-width, 80%);
-        animation: chatbot-message-in 180ms ease-out both;
-        position: relative;
-    }
-
-    .chatbot-message.user {
-        margin-left: auto;
-        flex-direction: row-reverse;
-    }
-
-    .chatbot-message.bot {
-        padding-left: 22px;
-    }
-
-    .chatbot-message-content {
-        padding: var(--chatbot-bubble-padding-y) var(--chatbot-bubble-padding-x);
-        border-radius: var(--chatbot-bubble-radius);
-        box-shadow: 0 8px 16px rgba(15, 23, 42, 0.08);
-        background: var(--chatbot-bubble-bot-bg);
-        color: var(--chatbot-bubble-bot-text);
-        font-size: var(--chatbot-bubble-font-size);
-        line-height: var(--chatbot-bubble-line-height);
-        font-family: var(--chatbot-message-font, inherit);
-        word-break: break-word;
-        border: 1px solid var(--chatbot-bubble-bot-border);
-        position: relative;
-    }
-
-    .chatbot-message-status {
-        display: block;
-        margin-top: 6px;
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--chatbot-muted);
-        letter-spacing: 0.01em;
-    }
-
-    .chatbot-message-status[data-status="sending"] {
-        color: rgba(15, 23, 42, 0.55);
-    }
-
-    .chatbot-message-status[data-status="failed"] {
-        color: #ef4444;
-    }
-
-    .chatbot-message.user .chatbot-message-status {
-        color: rgba(255, 255, 255, 0.75);
-    }
-
-    .chatbot-message.user .chatbot-message-status[data-status="failed"] {
-        color: #fecaca;
-    }
-
-    .chatbot-copy-btn {
-        position: absolute;
-        left: 0;
-        bottom: 4px;
-        width: 16px !important;
-        height: 16px !important;
-        border-radius: 4px;
-        border: none;
-        background: rgba(15, 23, 42, 0.12);
-        color: var(--chatbot-bubble-bot-text);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
-        cursor: pointer;
-        padding: 0 !important;
-        min-height: 0 !important;
-        line-height: 1 !important;
-        transform: translateY(4px);
-    }
-
-    .chatbot-message:hover .chatbot-copy-btn,
-    .chatbot-message:focus-within .chatbot-copy-btn {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translateY(0);
-    }
-
-    .chatbot-copy-btn:hover {
-        background: rgba(15, 23, 42, 0.16);
-    }
-
-    .chatbot-copy-btn svg {
-        width: 10px;
-        height: 10px;
-    }
-
-    .chatbot-message.user .chatbot-copy-btn {
-        background: rgba(255, 255, 255, 0.25);
-        color: #ffffff;
-    }
-
-    .chatbot-message.user .chatbot-copy-btn:hover {
-        background: rgba(255, 255, 255, 0.4);
-    }
-
-    body.dark-mode .chatbot-copy-btn,
-    .dark-mode .chatbot-copy-btn,
-    [data-theme="dark"] .chatbot-copy-btn {
-        background: rgba(148, 163, 184, 0.2);
-        color: #e2e8f0;
-    }
-
-    body.dark-mode .chatbot-copy-btn:hover,
-    .dark-mode .chatbot-copy-btn:hover,
-    [data-theme="dark"] .chatbot-copy-btn:hover {
-        background: rgba(148, 163, 184, 0.32);
-    }
-
-    .chatbot-message-content p {
-        margin: 0 0 0.45em;
-    }
-
-    .chatbot-message-content p:last-child {
-        margin-bottom: 0;
-    }
-
-    .chatbot-message-content ul,
-    .chatbot-message-content ol {
-        margin: 0.4em 0 0.4em 1.1em;
-        padding: 0;
-    }
-
-    .chatbot-message-content li {
-        margin: 0.2em 0;
-    }
-
-    .chatbot-message-content blockquote {
-        margin: 0.5em 0;
-        padding-left: 0.75em;
-        border-left: 2px solid rgba(148, 163, 184, 0.6);
-        color: var(--chatbot-muted);
-    }
-
-    .chatbot-message-content h1,
-    .chatbot-message-content h2,
-    .chatbot-message-content h3,
-    .chatbot-message-content h4,
-    .chatbot-message-content h5,
-    .chatbot-message-content h6 {
-        margin: 0.5em 0 0.35em;
-        font-weight: 700;
-        line-height: 1.2;
-    }
-
-    .chatbot-message-content h1 { font-size: 1.1em; }
-    .chatbot-message-content h2 { font-size: 1.05em; }
-    .chatbot-message-content h3 { font-size: 1em; }
-
-    .chatbot-message-content hr {
-        border: 0;
-        border-top: 1px solid rgba(148, 163, 184, 0.4);
-        margin: 0.6em 0;
-    }
-
-    .chatbot-message-content pre {
-        margin: 0.6em 0;
-        padding: 8px 10px;
+    .dark-mode .chatbot-tabs { background: #0b1626; }
+    .chatbot-tabs > li { float: none; margin: 0; }
+    .chatbot-tabs .nav-link,
+    .chatbot-tabs > li > a {
         border-radius: 10px;
-        background: rgba(15, 23, 42, 0.08);
-        font-size: 0.9em;
-        overflow-x: auto;
-        white-space: pre-wrap;
+        padding: 8px 14px;
+        border: 1px solid transparent;
+        color: var(--chatbot-muted);
+        font-weight: 600;
+        transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
     }
-
-    .chatbot-message-content code {
-        background: rgba(15, 23, 42, 0.08);
-        padding: 0 4px;
-        border-radius: 6px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    }
-
-    .chatbot-message-content u {
-        text-decoration: underline;
-    }
-
-    .chatbot-message-content .chatbot-spoiler {
-        background: rgba(15, 23, 42, 0.15);
-        color: transparent;
-        border-radius: 6px;
-        padding: 0 4px;
-        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.4);
-        cursor: pointer;
-        transition: color 0.2s ease;
-    }
-
-    .chatbot-message-content .chatbot-spoiler:hover,
-    .chatbot-message-content .chatbot-spoiler:focus {
+    .dark-mode .chatbot-tabs .nav-link,
+    .dark-mode .chatbot-tabs > li > a { color: #a8b4c7; }
+    .chatbot-tabs .nav-link:hover,
+    .chatbot-tabs > li > a:hover {
         color: var(--chatbot-text);
-    }
-
-    .chatbot-message-content a {
-        color: var(--chatbot-primary-strong);
-        text-decoration: underline;
-        word-break: break-word;
-    }
-
-    .chatbot-message.user .chatbot-message-content {
-        background: var(--chatbot-bubble-user-bg);
-        color: var(--chatbot-bubble-user-text);
-        border-color: var(--chatbot-bubble-user-border);
-    }
-
-    .chatbot-message.user .chatbot-message-content blockquote {
-        border-left-color: rgba(255, 255, 255, 0.6);
-        color: rgba(255, 255, 255, 0.85);
-    }
-
-    .chatbot-message.user .chatbot-message-content pre,
-    .chatbot-message.user .chatbot-message-content code {
-        background: rgba(255, 255, 255, 0.2);
-        color: #ffffff;
-    }
-
-    .chatbot-message.user .chatbot-message-content a {
-        color: #e0f2fe;
-    }
-
-    .chatbot-message.user .chatbot-message-content .chatbot-spoiler {
-        background: rgba(255, 255, 255, 0.25);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
-    }
-
-    .chatbot-message.typing {
-        align-self: center;
-        margin-left: auto;
-        margin-right: auto;
-        max-width: none;
-    }
-
-    .chatbot-message.typing .chatbot-message-content {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        padding: 10px 16px;
-        flex-direction: row;
-    }
-
-    .typing-indicator span {
-        height: 8px;
-        width: 8px;
-        background-color: rgba(37, 99, 235, 0.5);
-        border-radius: 50%;
-        display: inline-block;
-        animation: chatbot-bounce 1.3s infinite ease-in-out both;
-    }
-
-    .typing-indicator span:nth-of-type(2) {
-        animation-delay: 0.15s;
-    }
-
-    .typing-indicator span:nth-of-type(3) {
-        animation-delay: 0.3s;
-    }
-
-    @keyframes chatbot-bounce {
-        0%, 80%, 100% {
-            transform: scale(0);
-            opacity: 0.4;
-        }
-        40% {
-            transform: scale(1);
-            opacity: 1;
-        }
-    }
-
-    @keyframes chatbot-spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-
-    .chatbot-image-viewer {
-        position: fixed;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 24px;
-        background: rgba(15, 23, 42, 0.72);
-        backdrop-filter: blur(2px);
-        z-index: 9999;
-    }
-
-    .chatbot-image-viewer.is-open {
-        display: flex;
-    }
-
-    .chatbot-image-viewer img {
-        max-width: min(92vw, 860px);
-        max-height: 88vh;
-        width: auto;
-        height: auto;
-        border-radius: 16px;
-        box-shadow: 0 20px 40px rgba(15, 23, 42, 0.35);
         background: #ffffff;
+        border-color: var(--chatbot-border);
     }
-
-    .chatbot-image-viewer__close {
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        border: none;
-        background: rgba(15, 23, 42, 0.6);
+    .dark-mode .chatbot-tabs .nav-link:hover,
+    .dark-mode .chatbot-tabs > li > a:hover {
+        background: rgba(148, 163, 184, 0.12);
+        color: var(--chatbot-text);
+        border-color: var(--chatbot-border);
+    }
+    .chatbot-tabs .nav-link.active,
+    .chatbot-tabs > li.active > a {
         color: #ffffff;
-        font-size: 20px;
-        cursor: pointer;
-        display: inline-flex;
+        background: var(--chatbot-accent);
+        border-color: var(--chatbot-accent);
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+    }
+
+    .chatbot-card {
+        background: var(--chatbot-surface);
+        border-radius: 14px;
+        border: 1px solid var(--chatbot-border);
+        padding: 20px 24px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+        transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+        animation: chatbot-rise 220ms ease-out both;
+    }
+    .dark-mode .chatbot-card {
+        box-shadow: 0 12px 30px rgba(2, 6, 23, 0.55);
+        border-color: var(--chatbot-border);
+    }
+    .chatbot-card:hover { transform: translateY(-2px); box-shadow: var(--chatbot-shadow); border-color: rgba(37, 99, 235, 0.3); }
+    .chatbot-card__title { font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 6px; }
+    .chatbot-card__subtitle { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
+    .dark-mode .chatbot-card__title { color: var(--chatbot-text); }
+    .dark-mode .chatbot-card__subtitle { color: var(--chatbot-muted); }
+
+    .chatbot-card .form-group { margin-bottom: 16px; }
+    .chatbot-card .form-group:last-child { margin-bottom: 0; }
+    .chatbot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 22px; align-items: start; }
+    .chatbot-grid .form-group { margin: 0; }
+    .chatbot-grid textarea.form-control { min-height: 120px; resize: vertical; }
+    .chatbot-card label { font-weight: 600; color: #0f172a; }
+    .chatbot-helper { font-size: 12px; color: var(--chatbot-muted); margin-top: 6px; display: block; line-height: 1.5; }
+    .chatbot-multi { min-height: 220px; }
+    .dark-mode .chatbot-card label { color: var(--chatbot-text); }
+
+    .chatbot-auth-block {
+        display: none;
+        border: 1px dashed var(--chatbot-border-strong);
+        background: var(--chatbot-surface-muted);
+        border-radius: 12px;
+        padding: 16px;
+        margin-top: 18px;
+    }
+    .chatbot-auth-divider {
+        height: 1px;
+        background: var(--chatbot-border);
+        margin: 18px 0;
+        border: 0;
+    }
+    .dark-mode .chatbot-auth-block { background: rgba(2, 6, 23, 0.45); }
+    .chatbot-auth-block.is-active {
+        display: block;
+        animation: chatbot-fade-in 180ms ease-out both;
+    }
+    .chatbot-admin-block { display: none; }
+    .chatbot-admin-block.is-active { display: block; animation: chatbot-fade-in 180ms ease-out both; }
+    .chatbot-auth-title { font-size: 12px; font-weight: 700; color: var(--chatbot-muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
+
+    .chatbot-form-actions {
+        display: flex;
+        justify-content: space-between;
         align-items: center;
-        justify-content: center;
-        transition: background-color 0.2s ease;
+        margin-top: 18px;
+        padding-top: 16px;
+        border-top: 1px solid var(--chatbot-border);
+        gap: 12px;
+        flex-wrap: wrap;
     }
+    .chatbot-form-actions .btn { border-radius: 10px; padding: 10px 18px; min-width: 160px; }
+    .chatbot-form-note { font-size: 12px; color: var(--chatbot-muted); }
+    .chatbot-form-note a { color: var(--chatbot-accent); text-decoration: none; font-weight: 600; }
+    .chatbot-form-note a:hover { text-decoration: underline; }
 
-    .chatbot-image-viewer__close:hover {
-        background: rgba(15, 23, 42, 0.8);
+    .chatbot-panel .form-control {
+        border-radius: 10px;
+        border-color: var(--chatbot-border);
+        box-shadow: none;
+        transition: border-color 160ms ease, box-shadow 160ms ease;
     }
-
-    body.ai-chatbot-image-open {
-        overflow: hidden;
+    .dark-mode .chatbot-panel .form-control {
+        background-color: rgba(15, 23, 42, 0.6);
+        color: var(--chatbot-text);
+        border-color: var(--chatbot-border);
     }
+    .dark-mode .chatbot-panel .form-control::placeholder { color: #8fa1b6; }
+    .chatbot-panel .form-control:focus {
+        border-color: rgba(37, 99, 235, 0.6);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    .chatbot-panel .mt-4 { margin-top: 20px; }
 
-    .chatbot-input-area {
+    .chatbot-field-row {
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: var(--chatbot-input-area-padding-y) var(--chatbot-input-area-padding-x);
-        border-top: 1px solid var(--chatbot-input-border);
-        background: var(--chatbot-input-area-bg);
-        backdrop-filter: blur(var(--chatbot-input-area-blur));
-        -webkit-backdrop-filter: blur(var(--chatbot-input-area-blur));
-        position: relative;
-        z-index: 1;
     }
-
-    .chatbot-input-area textarea,
-    .chatbot-input-area input[type="text"] {
-        flex: 1;
-        border: 1px solid var(--chatbot-input-border);
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-size: 15px;
-        color: var(--chatbot-input-text);
-        outline: none;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-        background-color: var(--chatbot-input-bg);
-    }
-
-    .chatbot-input-area textarea {
-        min-height: 40px;
-        max-height: 120px;
-        resize: none;
-        line-height: 1.35;
-        overflow: auto;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-    }
-
-    .chatbot-input-area textarea::-webkit-scrollbar {
-        width: 0;
-        height: 0;
-    }
-
-    .chatbot-input-area textarea:focus,
-    .chatbot-input-area input[type="text"]:focus {
-        border-color: var(--chatbot-primary);
-        box-shadow: var(--chatbot-ring);
-        background-color: var(--chatbot-input-bg-focus);
-    }
-
-    .chatbot-input-area textarea::placeholder,
-    .chatbot-input-area input[type="text"]::placeholder {
-        color: var(--chatbot-muted);
-    }
-
-    .chatbot-input-area button {
-        background: var(--chatbot-send-bg);
-        color: var(--chatbot-send-text);
-        border: none;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        min-width: 40px;
-        min-height: 40px;
-        aspect-ratio: 1 / 1;
-        padding: 0;
-        font-weight: 600;
-        cursor: pointer;
-        box-shadow: 0 10px 18px rgba(13, 148, 136, 0.25);
-        transition: transform 0.2s ease, filter 0.2s ease;
-        display: inline-flex;
+    .chatbot-field-row .form-control { flex: 1 1 auto; }
+    .chatbot-field-row--with-advanced .chatbot-advanced-field { display: none; flex: 1 1 auto; }
+    .chatbot-field-row--with-advanced.is-advanced .chatbot-advanced-field { display: block; }
+    .chatbot-field-row--with-advanced .chatbot-field-controls {
+        display: flex;
         align-items: center;
-        justify-content: center;
-        position: relative;
-        overflow: hidden;
+        gap: 10px;
+        flex: 1 1 auto;
     }
-
-    .chatbot-input-area button svg {
-        transition: opacity 0.2s ease;
-    }
-
-    .chatbot-input-area button .chatbot-send-spinner {
-        position: absolute;
-        inset: 0;
-        margin: auto;
-        width: 18px;
-        height: 18px;
-        border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, 0.45);
-        border-top-color: #ffffff;
-        opacity: 0;
-        animation: chatbot-spin 0.8s linear infinite;
-        pointer-events: none;
-    }
-
-    .chatbot-input-area button.is-loading svg {
-        opacity: 0;
-    }
-
-    .chatbot-input-area button.is-loading .chatbot-send-spinner {
-        opacity: 1;
-    }
-
-    .chatbot-input-area button:hover:not([disabled]) {
-        transform: translateY(-1px);
-        filter: brightness(1.05);
-    }
-
-    .chatbot-input-area button:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-    }
-
-    .chatbot-input__label {
-        position: absolute;
-        width: 1px;
-        height: 1px;
+    .chatbot-field-row--with-advanced.is-advanced .chatbot-field-controls { flex: 0 0 auto; }
+    .chatbot-color-input {
+        width: 44px;
+        height: 38px;
         padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        border: 0;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    .chatbot-select-compact { max-width: 180px; }
+    .chatbot-custom-settings.is-hidden { display: none; }
+    .chatbot-theme-hint { margin-bottom: 16px; }
+
+    @keyframes chatbot-rise {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes chatbot-fade-in {
+        from { opacity: 0; transform: translateY(6px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 
-    body.dark-mode .ai-chatbot-root,
-    .dark-mode .ai-chatbot-root,
-    [data-theme="dark"] .ai-chatbot-root {
-        --chatbot-primary: #60a5fa;
-        --chatbot-primary-strong: #3b82f6;
-        --chatbot-accent: #22d3ee;
-        --chatbot-bg: #0b1220;
-        --chatbot-surface: #0f172a;
-        --chatbot-text: #e2e8f0;
-        --chatbot-muted: #94a3b8;
-        --chatbot-bubble-border: rgba(148, 163, 184, 0.25);
-        --chatbot-header-bg-default: linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-accent));
-        --chatbot-header-text-default: #ffffff;
-        --chatbot-launcher-bg-default: linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-primary-strong));
-        --chatbot-launcher-text-default: #ffffff;
-        --chatbot-send-bg-default: linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-accent));
-        --chatbot-send-text-default: #ffffff;
-        --chatbot-frame-bg-default: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
-        --chatbot-messages-bg-default: linear-gradient(180deg, #0b1220 0%, #111827 100%);
-        --chatbot-input-bg-default: #0b1220;
-        --chatbot-input-text-default: var(--chatbot-text);
-        --chatbot-input-border-default: rgba(148, 163, 184, 0.35);
-        --chatbot-input-area-bg-default: rgba(15, 23, 42, 0.85);
-        --chatbot-shadow: 0 20px 45px rgba(2, 6, 23, 0.6);
-        --chatbot-ring: 0 0 0 3px rgba(96, 165, 250, 0.35);
-    }
-
-    body.dark-mode .ai-chatbot-frame,
-    .dark-mode .ai-chatbot-frame,
-    [data-theme="dark"] .ai-chatbot-frame {
-        border-color: rgba(148, 163, 184, 0.2);
-    }
-
-    body.dark-mode .ai-chatbot-frame::before,
-    .dark-mode .ai-chatbot-frame::before,
-    [data-theme="dark"] .ai-chatbot-frame::before {
-        opacity: 0.35;
-    }
-
-    body.dark-mode .chatbot-messages,
-    .dark-mode .chatbot-messages,
-    [data-theme="dark"] .chatbot-messages {
-        background: var(--chatbot-messages-bg);
-    }
-
-    body.dark-mode .chatbot-header__status,
-    .dark-mode .chatbot-header__status,
-    [data-theme="dark"] .chatbot-header__status {
-        color: var(--chatbot-header-text);
-        font-weight: 700;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-    }
-
-    body.dark-mode .chatbot-header__status::before,
-    .dark-mode .chatbot-header__status::before,
-    [data-theme="dark"] .chatbot-header__status::before {
-        box-shadow:
-            0 0 0 3px rgba(34, 197, 94, 0.35),
-            0 0 12px rgba(34, 197, 94, 0.35);
-    }
-
-    body.dark-mode .chatbot-header__status[data-status="checking"]::before,
-    .dark-mode .chatbot-header__status[data-status="checking"]::before,
-    [data-theme="dark"] .chatbot-header__status[data-status="checking"]::before {
-        box-shadow:
-            0 0 0 3px rgba(245, 158, 11, 0.4),
-            0 0 12px rgba(245, 158, 11, 0.35);
-    }
-
-    body.dark-mode .chatbot-header__status[data-status="offline"]::before,
-    .dark-mode .chatbot-header__status[data-status="offline"]::before,
-    [data-theme="dark"] .chatbot-header__status[data-status="offline"]::before {
-        box-shadow:
-            0 0 0 3px rgba(239, 68, 68, 0.4),
-            0 0 12px rgba(239, 68, 68, 0.35);
-    }
-
-    body.dark-mode .chatbot-message-content,
-    .dark-mode .chatbot-message-content,
-    [data-theme="dark"] .chatbot-message-content {
-        box-shadow: 0 10px 18px rgba(2, 6, 23, 0.45);
-    }
-
-    body.dark-mode .chatbot-input-area,
-    .dark-mode .chatbot-input-area,
-    [data-theme="dark"] .chatbot-input-area {
-        border-top-color: rgba(148, 163, 184, 0.25);
-        background: rgba(15, 23, 42, 0.85);
-    }
-
-    body.dark-mode .chatbot-input-area textarea,
-    .dark-mode .chatbot-input-area textarea,
-    [data-theme="dark"] .chatbot-input-area textarea,
-    body.dark-mode .chatbot-input-area input[type="text"],
-    .dark-mode .chatbot-input-area input[type="text"],
-    [data-theme="dark"] .chatbot-input-area input[type="text"] {
-        background-color: var(--chatbot-input-bg);
-    }
-
-    body.dark-mode .chatbot-input-area textarea:focus,
-    .dark-mode .chatbot-input-area textarea:focus,
-    [data-theme="dark"] .chatbot-input-area textarea:focus,
-    body.dark-mode .chatbot-input-area input[type="text"]:focus,
-    .dark-mode .chatbot-input-area input[type="text"]:focus,
-    [data-theme="dark"] .chatbot-input-area input[type="text"]:focus {
-        background-color: var(--chatbot-input-bg-focus);
-    }
-
-    @media (prefers-color-scheme: dark) {
-        .ai-chatbot-root {
-            --chatbot-primary: #60a5fa;
-            --chatbot-primary-strong: #3b82f6;
-            --chatbot-accent: #22d3ee;
-            --chatbot-bg: #0b1220;
-            --chatbot-surface: #0f172a;
-            --chatbot-text: #e2e8f0;
-            --chatbot-muted: #94a3b8;
-            --chatbot-header-bg-default: linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-accent));
-            --chatbot-header-text-default: #ffffff;
-            --chatbot-launcher-bg-default: linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-primary-strong));
-            --chatbot-launcher-text-default: #ffffff;
-            --chatbot-send-bg-default: linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-accent));
-            --chatbot-send-text-default: #ffffff;
-            --chatbot-frame-bg-default: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
-            --chatbot-messages-bg-default: linear-gradient(180deg, #0b1220 0%, #111827 100%);
-            --chatbot-input-bg-default: #0b1220;
-            --chatbot-input-text-default: var(--chatbot-text);
-            --chatbot-input-border-default: rgba(148, 163, 184, 0.35);
-            --chatbot-input-area-bg-default: rgba(15, 23, 42, 0.85);
-            --chatbot-shadow: 0 20px 45px rgba(2, 6, 23, 0.6);
-            --chatbot-ring: 0 0 0 3px rgba(96, 165, 250, 0.35);
-        }
-
-        .ai-chatbot-frame {
-            border-color: rgba(148, 163, 184, 0.2);
-        }
-
-        .ai-chatbot-frame::before {
-            opacity: 0.35;
-        }
-
-        .chatbot-messages {
-            background: var(--chatbot-messages-bg);
-        }
-
-        .chatbot-header__status {
-            color: var(--chatbot-header-text);
-            font-weight: 700;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-        }
-
-        .chatbot-header__status::before {
-            box-shadow:
-                0 0 0 3px rgba(34, 197, 94, 0.35),
-                0 0 12px rgba(34, 197, 94, 0.35);
-        }
-
-        .chatbot-header__status[data-status="checking"]::before {
-            box-shadow:
-                0 0 0 3px rgba(245, 158, 11, 0.4),
-                0 0 12px rgba(245, 158, 11, 0.35);
-        }
-
-        .chatbot-header__status[data-status="offline"]::before {
-            box-shadow:
-                0 0 0 3px rgba(239, 68, 68, 0.4),
-                0 0 12px rgba(239, 68, 68, 0.35);
-        }
-
-        .chatbot-message-content {
-            box-shadow: 0 10px 18px rgba(2, 6, 23, 0.45);
-        }
-
-        .chatbot-input-area {
-            border-top-color: rgba(148, 163, 184, 0.25);
-            background: rgba(15, 23, 42, 0.85);
-        }
-
-        .chatbot-input-area textarea,
-        .chatbot-input-area input[type="text"] {
-            background-color: var(--chatbot-input-bg);
-        }
-
-        .chatbot-input-area textarea:focus,
-        .chatbot-input-area input[type="text"]:focus {
-            background-color: var(--chatbot-input-bg-focus);
-        }
-
-        .chatbot-scroll-bottom {
-            background: rgba(148, 163, 184, 0.16);
-            color: #e2e8f0;
-        }
-    }
-
-    @media (max-width: 720px) {
-        .ai-chatbot-root {
-            left: min(var(--chatbot-side-spacing), 20px);
-            right: min(var(--chatbot-side-spacing), 20px);
-            flex-direction: column-reverse;
-            align-items: stretch;
-        }
-
-        .ai-chatbot-button {
-            align-self: flex-end;
-        }
-
-        .ai-chatbot-frame {
-            width: 100%;
-            height: min(75vh, {$frame_height}px);
-        }
+    @media (max-width: 640px) {
+        .chatbot-summary { padding: 16px; }
+        .chatbot-card { padding: 16px; }
+        .chatbot-grid { gap: 12px; }
+        .chatbot-tabs { padding: 4px; }
+        .chatbot-form-actions { justify-content: center; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .ai-chatbot-frame.is-open,
-        .chatbot-message,
-        .ai-chatbot-button::after {
-            animation: none;
-            transition: none;
-        }
-    }
-
-    @keyframes chatbot-frame-in {
-        from {
-            opacity: 0;
-            transform: translateY(12px) scale(0.98);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-        }
-    }
-
-    @keyframes chatbot-message-in {
-        from {
-            opacity: 0;
-            transform: translateY(6px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        .chatbot-summary,
+        .chatbot-card,
+        .chatbot-auth-block.is-active { animation: none; }
+        .chatbot-card,
+        .chatbot-tabs .nav-link,
+        .chatbot-tabs > li > a,
+        .chatbot-panel .form-control { transition: none; }
     }
 </style>
+{/literal}
 
-<div id="ai-chatbot-root" class="ai-chatbot-root ai-chatbot-root--{$button_side|escape}" data-enabled="{$chatbot_enabled}" data-title="{$chatbot_title|escape}">
-    <button type="button" id="ai-chatbot-button" class="ai-chatbot-button" title="{$button_label|escape}" aria-label="{$button_label|escape}" aria-controls="ai-chatbot-frame" aria-expanded="false">
-        <span class="ai-chatbot-button-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H8l-5 5V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-        </span>
-        <span class="ai-chatbot-button-text">{$button_label|escape}</span>
-        <span class="ai-chatbot-unread" aria-hidden="true"></span>
-    </button>
-    <div id="ai-chatbot-frame" class="ai-chatbot-frame" data-frame-mode="{$frame_mode|escape}" role="dialog" aria-modal="false" aria-hidden="true" aria-label="{$chatbot_title|escape}">
-        <div class="chatbot-header">
-            <div class="chatbot-header__info">
-                <div class="chatbot-header__title">
-                    {if $chatbot.chatbot_avatar_url|trim ne ''}
-                        <img src="{$chatbot.chatbot_avatar_url|escape}" alt="" class="chatbot-header__avatar" />
-                    {else}
-                        <span class="chatbot-header__avatar chatbot-header__avatar--placeholder">AI</span>
-                    {/if}
-                    <div class="chatbot-header__text">
-                        <span class="chatbot-header__name">{$chatbot_title|escape}</span>
-                        <span class="chatbot-header__status" data-status="checking">Checking...</span>
+<div class="row">
+    <div class="col-md-12">
+        <div class="panel chatbot-panel">
+            <div class="panel-hdr">
+                <h2>AI Chatbot Settings</h2>
+            </div>
+            <div class="panel-container">
+                <div class="panel-content chatbot-settings-wrapper">
+
+                    <div class="chatbot-summary">
+                        <div class="chatbot-summary__top">
+                            <div>
+                                <span class="chatbot-summary__label">Status</span>
+                                <span class="chatbot-status {if $is_enabled}chatbot-status--on{else}chatbot-status--off{/if}">
+                                    {if $is_enabled}Active{else}Disabled{/if}
+                                </span>
+                            </div>
+                            <div class="chatbot-summary__endpoint">
+                                <span class="chatbot-summary__label">Endpoint Publik/Customer</span>
+                                {if $config.chatbot_endpoint|trim neq ''}
+                                    <code>{$config.chatbot_endpoint|escape}</code>
+                                {else}
+                                    <span class="text-muted">Not configured</span>
+                                {/if}
+                                <span class="chatbot-summary__label chatbot-summary__label--spaced">Endpoint Admin</span>
+                                {if $config.chatbot_admin_endpoint_enabled == '1'}
+                                    {if $config.chatbot_endpoint_admin|trim neq ''}
+                                        <code>{$config.chatbot_endpoint_admin|escape}</code>
+                                    {else}
+                                        <span class="text-muted">Belum diisi</span>
+                                    {/if}
+                                {else}
+                                    <span class="text-muted">Disabled</span>
+                                {/if}
+                            </div>
+                        </div>
+                        <p class="chatbot-summary__description">
+
+                        </p>
                     </div>
+
+                    <ul class="nav nav-tabs chatbot-tabs" role="tablist">
+                        {foreach $chatbot_sections as $key => $anchor}
+                            {if $key eq 'styling'}
+                                {assign var=tab_label value='Theme'}
+                            {else}
+                                {assign var=tab_label value=$key|replace:'-':' '|ucwords}
+                            {/if}
+                            <li class="nav-item {if $key eq $chatbot_active_section}active{/if}"><a class="nav-link {if $key eq $chatbot_active_section}active{/if}" href="{getUrl('plugin/ai_chatbot_settings/')}{$key}">{$tab_label}</a></li>
+                        {/foreach}
+                    </ul>
+
+                    <form method="post" action="{getUrl('plugin/ai_chatbot_settings/')}{$chatbot_active_section}" class="mt-4">
+                        {if isset($csrf_token)}
+                            <input type="hidden" name="csrf_token" value="{$csrf_token}">
+                        {/if}
+                        <div class="tab-content">
+                            <div class="tab-pane active" id="{$chatbot_active_anchor}">
+
+                                {if $chatbot_active_section eq 'general'}
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Aktivasi & Endpoint</h3>
+                                        <p class="chatbot-card__subtitle">Tentukan apakah chatbot aktif serta ke mana permintaan dikirim.</p>
+                                        <div class="chatbot-grid">
+                                            <div class="form-group">
+                                                <label for="chatbot_enabled">Enable Chatbot</label>
+                                                <select id="chatbot_enabled" name="chatbot_enabled" class="form-control">
+                                                    <option value="1" {if $config.chatbot_enabled == '1'}selected{/if}>Yes</option>
+                                                    <option value="0" {if $config.chatbot_enabled == '0'}selected{/if}>No</option>
+                                                </select>
+                                                <span class="chatbot-helper">Nonaktifkan jika Anda ingin menyembunyikan tombol chatbot di seluruh halaman.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_endpoint">Endpoint Publik/Customer</label>
+                                                <input type="url" id="chatbot_endpoint" name="chatbot_endpoint" class="form-control" value="{$config.chatbot_endpoint|escape}" placeholder="https://your.ai.endpoint/chat">
+                                                <span class="chatbot-helper">Dipakai untuk halaman publik & customer. Endpoint admin dapat menggantikannya.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_admin_endpoint_enabled">Enable Endpoint Admin</label>
+                                                <select id="chatbot_admin_endpoint_enabled" name="chatbot_admin_endpoint_enabled" class="form-control">
+                                                    <option value="1" {if $config.chatbot_admin_endpoint_enabled == '1'}selected{/if}>Yes</option>
+                                                    <option value="0" {if $config.chatbot_admin_endpoint_enabled == '0'}selected{/if}>No</option>
+                                                </select>
+                                                <span class="chatbot-helper">Jika aktif, admin akan memakai endpoint terpisah dengan autentikasi & payload khusus.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_endpoint_admin">Endpoint Admin (Opsional)</label>
+                                                <input type="url" id="chatbot_endpoint_admin" name="chatbot_endpoint_admin" class="form-control" value="{$config.chatbot_endpoint_admin|escape}" placeholder="https://admin.ai.endpoint/chat">
+                                                <span class="chatbot-helper">Isi jika ingin endpoint berbeda khusus saat admin membuka chatbot.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_request_timeout">Request Timeout (detik)</label>
+                                                <input type="number" min="5" max="600" id="chatbot_request_timeout" name="chatbot_request_timeout" class="form-control" value="{$config.chatbot_request_timeout|escape}">
+                                                <span class="chatbot-helper">Berapa lama sistem menunggu respons sebelum menampilkan pesan gagal.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_status_throttle">Status Check Throttle (detik)</label>
+                                                <input type="number" min="0" max="600" id="chatbot_status_throttle" name="chatbot_status_throttle" class="form-control" value="{$config.chatbot_status_throttle|default:30|escape}">
+                                                <span class="chatbot-helper">0 untuk cek status setiap kali panel dibuka, atau isi angka untuk menunda pengecekan ulang.</span>
+                                            </div>
+                                        </div>
+                                        <div class="chatbot-auth-title" style="margin-top: 12px;">Metode Autentikasi (Publik/Customer)</div>
+                                        <div class="chatbot-grid">
+                                            <div class="form-group">
+                                                <label for="chatbot_auth_type">Authentication Type</label>
+                                                <select id="chatbot_auth_type" name="chatbot_auth_type" class="form-control">
+                                                    <option value="none" {if $config.chatbot_auth_type == 'none'}selected{/if}>None</option>
+                                                    <option value="header" {if $config.chatbot_auth_type == 'header'}selected{/if}>Custom Header</option>
+                                                    <option value="basic" {if $config.chatbot_auth_type == 'basic'}selected{/if}>Basic Auth</option>
+                                                    <option value="jwt" {if $config.chatbot_auth_type == 'jwt'}selected{/if}>JWT (HMAC)</option>
+                                                </select>
+                                                <span class="chatbot-helper">Gunakan <em>Custom Header</em> untuk API key sederhana, atau JWT untuk token dinamis.</span>
+                                            </div>
+                                        </div>
+
+                                        <div class="chatbot-auth-block js-auth-block" data-auth-mode="header">
+                                            <div class="chatbot-auth-title">Custom Header</div>
+                                            <div class="chatbot-grid">
+                                                <div class="form-group">
+                                                    <label for="chatbot_header_key">Header Name</label>
+                                                    <input type="text" id="chatbot_header_key" name="chatbot_header_key" class="form-control" value="{$config.chatbot_header_key|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_header_value">Header Value</label>
+                                                    <input type="text" id="chatbot_header_value" name="chatbot_header_value" class="form-control" value="{$config.chatbot_header_value|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_as_bearer">Format Value</label>
+                                                    <select id="chatbot_as_bearer" name="chatbot_as_bearer" class="form-control">
+                                                        <option value="no" {if $config.chatbot_as_bearer == 'no'}selected{/if}>Gunakan apa adanya</option>
+                                                        <option value="yes" {if $config.chatbot_as_bearer == 'yes'}selected{/if}>Prefix dengan Bearer</option>
+                                                    </select>
+                                                    <span class="chatbot-helper">Jika memilih Bearer, nilai akan dikirim sebagai <code>Authorization: Bearer &lt;value&gt;</code>.</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="chatbot-auth-block js-auth-block" data-auth-mode="basic">
+                                            <div class="chatbot-auth-title">Basic Authentication</div>
+                                            <div class="chatbot-grid">
+                                                <div class="form-group">
+                                                    <label for="chatbot_basic_user">Username</label>
+                                                    <input type="text" id="chatbot_basic_user" name="chatbot_basic_user" class="form-control" value="{$config.chatbot_basic_user|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_basic_pass">Password</label>
+                                                    <input type="password" id="chatbot_basic_pass" name="chatbot_basic_pass" class="form-control" value="{$config.chatbot_basic_pass|escape}">
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="chatbot-auth-block js-auth-block" data-auth-mode="jwt">
+                                            <div class="chatbot-auth-title">JWT (HS256)</div>
+                                            <div class="chatbot-grid">
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_token">Token ID / Subject</label>
+                                                    <input type="text" id="chatbot_jwt_token" name="chatbot_jwt_token" class="form-control" value="{$config.chatbot_jwt_token|escape}" placeholder="token-id">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_secret">Shared Secret</label>
+                                                    <input type="password" id="chatbot_jwt_secret" name="chatbot_jwt_secret" class="form-control" value="{$config.chatbot_jwt_secret|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_iss">Issuer (iss)</label>
+                                                    <input type="text" id="chatbot_jwt_iss" name="chatbot_jwt_iss" class="form-control" value="{$config.chatbot_jwt_iss|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_aud">Audience (aud)</label>
+                                                    <input type="text" id="chatbot_jwt_aud" name="chatbot_jwt_aud" class="form-control" value="{$config.chatbot_jwt_aud|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_sub">Subject (sub)</label>
+                                                    <input type="text" id="chatbot_jwt_sub" name="chatbot_jwt_sub" class="form-control" value="{$config.chatbot_jwt_sub|escape}">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="chatbot_jwt_ttl">TTL (detik)</label>
+                                                    <input type="number" min="60" max="3600" id="chatbot_jwt_ttl" name="chatbot_jwt_ttl" class="form-control" value="{$config.chatbot_jwt_ttl|escape}">
+                                                </div>
+                                            </div>
+                                            <span class="chatbot-helper">Plugin akan menghasilkan token JWT HS256 baru setiap kali percakapan dikirim.</span>
+                                        </div>
+
+                                        <div class="chatbot-auth-divider"></div>
+                                        <div class="chatbot-admin-block js-admin-endpoint-block">
+                                            <div class="chatbot-auth-title">Metode Autentikasi (Admin)</div>
+                                            <div class="chatbot-grid">
+                                                <div class="form-group">
+                                                    <label for="chatbot_admin_auth_type">Authentication Type</label>
+                                                    <select id="chatbot_admin_auth_type" name="chatbot_admin_auth_type" class="form-control">
+                                                        <option value="none" {if $config.chatbot_admin_auth_type == 'none'}selected{/if}>None</option>
+                                                        <option value="header" {if $config.chatbot_admin_auth_type == 'header'}selected{/if}>Custom Header</option>
+                                                        <option value="basic" {if $config.chatbot_admin_auth_type == 'basic'}selected{/if}>Basic Auth</option>
+                                                        <option value="jwt" {if $config.chatbot_admin_auth_type == 'jwt'}selected{/if}>JWT (HMAC)</option>
+                                                    </select>
+                                                    <span class="chatbot-helper">Autentikasi khusus saat admin memakai endpoint admin.</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="chatbot-auth-block js-admin-auth-block" data-auth-mode="header">
+                                                <div class="chatbot-auth-title">Custom Header</div>
+                                                <div class="chatbot-grid">
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_header_key">Header Name</label>
+                                                        <input type="text" id="chatbot_admin_header_key" name="chatbot_admin_header_key" class="form-control" value="{$config.chatbot_admin_header_key|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_header_value">Header Value</label>
+                                                        <input type="text" id="chatbot_admin_header_value" name="chatbot_admin_header_value" class="form-control" value="{$config.chatbot_admin_header_value|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_as_bearer">Format Value</label>
+                                                        <select id="chatbot_admin_as_bearer" name="chatbot_admin_as_bearer" class="form-control">
+                                                            <option value="no" {if $config.chatbot_admin_as_bearer == 'no'}selected{/if}>Gunakan apa adanya</option>
+                                                            <option value="yes" {if $config.chatbot_admin_as_bearer == 'yes'}selected{/if}>Prefix dengan Bearer</option>
+                                                        </select>
+                                                        <span class="chatbot-helper">Jika memilih Bearer, nilai akan dikirim sebagai <code>Authorization: Bearer &lt;value&gt;</code>.</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="chatbot-auth-block js-admin-auth-block" data-auth-mode="basic">
+                                                <div class="chatbot-auth-title">Basic Authentication</div>
+                                                <div class="chatbot-grid">
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_basic_user">Username</label>
+                                                        <input type="text" id="chatbot_admin_basic_user" name="chatbot_admin_basic_user" class="form-control" value="{$config.chatbot_admin_basic_user|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_basic_pass">Password</label>
+                                                        <input type="password" id="chatbot_admin_basic_pass" name="chatbot_admin_basic_pass" class="form-control" value="{$config.chatbot_admin_basic_pass|escape}">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="chatbot-auth-block js-admin-auth-block" data-auth-mode="jwt">
+                                                <div class="chatbot-auth-title">JWT (HS256)</div>
+                                                <div class="chatbot-grid">
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_token">Token ID / Subject</label>
+                                                        <input type="text" id="chatbot_admin_jwt_token" name="chatbot_admin_jwt_token" class="form-control" value="{$config.chatbot_admin_jwt_token|escape}" placeholder="token-id">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_secret">Shared Secret</label>
+                                                        <input type="password" id="chatbot_admin_jwt_secret" name="chatbot_admin_jwt_secret" class="form-control" value="{$config.chatbot_admin_jwt_secret|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_iss">Issuer (iss)</label>
+                                                        <input type="text" id="chatbot_admin_jwt_iss" name="chatbot_admin_jwt_iss" class="form-control" value="{$config.chatbot_admin_jwt_iss|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_aud">Audience (aud)</label>
+                                                        <input type="text" id="chatbot_admin_jwt_aud" name="chatbot_admin_jwt_aud" class="form-control" value="{$config.chatbot_admin_jwt_aud|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_sub">Subject (sub)</label>
+                                                        <input type="text" id="chatbot_admin_jwt_sub" name="chatbot_admin_jwt_sub" class="form-control" value="{$config.chatbot_admin_jwt_sub|escape}">
+                                                    </div>
+                                                    <div class="form-group">
+                                                        <label for="chatbot_admin_jwt_ttl">TTL (detik)</label>
+                                                        <input type="number" min="60" max="3600" id="chatbot_admin_jwt_ttl" name="chatbot_admin_jwt_ttl" class="form-control" value="{$config.chatbot_admin_jwt_ttl|escape}">
+                                                    </div>
+                                                </div>
+                                                <span class="chatbot-helper">Token JWT HS256 untuk admin akan dibuat setiap request admin.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Chat dengan Admin (Handoff)</h3>
+                                        <p class="chatbot-card__subtitle">Kirim route handoff ke gateway agar admin bisa mengambil alih percakapan.</p>
+                                        <div class="chatbot-grid">
+                                            <div class="form-group">
+                                                <label for="chatbot_handoff_enabled">Enable Chat dengan Admin</label>
+                                                <select id="chatbot_handoff_enabled" name="chatbot_handoff_enabled" class="form-control">
+                                                    <option value="1" {if $config.chatbot_handoff_enabled == '1'}selected{/if}>Yes</option>
+                                                    <option value="0" {if $config.chatbot_handoff_enabled == '0'}selected{/if}>No</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_handoff_label">Button Label</label>
+                                                <input type="text" id="chatbot_handoff_label" name="chatbot_handoff_label" class="form-control" value="{$config.chatbot_handoff_label|escape}" placeholder="Chat dengan Admin">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_handoff_timeout">Handoff Timeout (detik)</label>
+                                                <input type="number" min="0" max="86400" id="chatbot_handoff_timeout" name="chatbot_handoff_timeout" class="form-control" value="{$config.chatbot_handoff_timeout|escape}">
+                                                <span class="chatbot-helper">Nilai ini dikirim sebagai <code>handoff_timeout_sec</code>. 0 = tanpa timeout.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_handoff_rate_limit">Cooldown Rate Limit (detik)</label>
+                                                <input type="number" min="0" max="600" id="chatbot_handoff_rate_limit" name="chatbot_handoff_rate_limit" class="form-control" value="{$config.chatbot_handoff_rate_limit|default:15|escape}">
+                                                <span class="chatbot-helper">Cooldown lokal ketika gateway membalas <code>RATE_LIMIT</code>. 0 = default (15 detik).</span>
+                                            </div>
+                                            <div class="form-group" style="grid-column: 1 / -1;">
+                                                <label for="chatbot_handoff_notice">Notice Message</label>
+                                                <textarea id="chatbot_handoff_notice" name="chatbot_handoff_notice" class="form-control" placeholder="Permintaan terkirim. Admin akan segera bergabung.">{$config.chatbot_handoff_notice|escape}</textarea>
+                                                <span class="chatbot-helper">Pesan yang ditampilkan di chat setelah tombol ditekan.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Penempatan Pada Footer Publik/Customer</h3>
+                                        <p class="chatbot-card__subtitle">Pilih footer publik/customer yang akan memuat tombol chatbot.</p>
+                                        {if $chatbot_footer_public_options|@count}
+                                            <div class="form-group">
+                                                <label for="chatbot_footer_targets">Halaman Publik/Customer</label>
+                                                <select id="chatbot_footer_targets" name="chatbot_footer_targets[]" class="form-control chatbot-multi" multiple size="10">
+                                                    {foreach $chatbot_footer_public_options as $option}
+                                                        <option value="{$option.path|escape}" {if $option.selected}selected{/if}>
+                                                            {$option.label|escape}{if isset($option.exists) && !$option.exists} (missing){/if}
+                                                        </option>
+                                                    {/foreach}
+                                                </select>
+                                                <span class="chatbot-helper">Gunakan Ctrl/Command + klik untuk memilih lebih dari satu. Beri kosong untuk menonaktifkan seluruh penempatan.</span>
+                                            </div>
+                                        {else}
+                                            <div class="alert alert-warning mb-0">
+                                                Tidak ditemukan template footer di <code>ui/ui</code> maupun <code>ui/ui_custom</code>. Tambahkan footer terlebih dahulu untuk menggunakan fitur ini.
+                                            </div>
+                                        {/if}
+                                    </div>
+
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Penempatan Pada Footer Admin</h3>
+                                        <p class="chatbot-card__subtitle">Pilih footer admin yang akan memuat tombol chatbot di panel admin.</p>
+                                        {if $chatbot_footer_admin_options|@count}
+                                            <div class="form-group">
+                                                <label for="chatbot_footer_targets_admin">Halaman Admin</label>
+                                                <select id="chatbot_footer_targets_admin" name="chatbot_footer_targets_admin[]" class="form-control chatbot-multi" multiple size="8">
+                                                    {foreach $chatbot_footer_admin_options as $option}
+                                                        <option value="{$option.path|escape}" {if $option.selected}selected{/if}>
+                                                            {$option.label|escape}{if isset($option.exists) && !$option.exists} (missing){/if}
+                                                        </option>
+                                                    {/foreach}
+                                                </select>
+                                                <span class="chatbot-helper">Kosongkan jika tidak ingin menampilkan chatbot di area admin.</span>
+                                            </div>
+                                        {else}
+                                            <div class="alert alert-warning mb-0">
+                                                Tidak ditemukan template footer admin di <code>ui/ui</code> maupun <code>ui/ui_custom</code>.
+                                            </div>
+                                        {/if}
+                                    </div>
+                                {/if}
+
+                                {if $chatbot_active_section eq 'styling'}
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Template Tema</h3>
+                                        <p class="chatbot-card__subtitle">Pilih tema cepat untuk mengisi semua warna &amp; style. Anda masih bisa modifikasi dan akan otomatis menjadi Custom.</p>
+                                        <div class="form-group mb-0">
+                                            <label for="chatbot_theme_preset">Theme Preset</label>
+                                            <select id="chatbot_theme_preset" name="chatbot_theme_preset" class="form-control">
+                                                <option value="custom" {if $config.chatbot_theme_preset == 'custom' || $config.chatbot_theme_preset == ''}selected{/if}>Custom (Manual)</option>
+                                                <option value="ocean" {if $config.chatbot_theme_preset == 'ocean'}selected{/if}>Ocean</option>
+                                                <option value="dark_glass" {if $config.chatbot_theme_preset == 'dark_glass'}selected{/if}>Dark Glass</option>
+                                                <option value="minimal" {if $config.chatbot_theme_preset == 'minimal'}selected{/if}>Minimal</option>
+                                                <option value="neon" {if $config.chatbot_theme_preset == 'neon'}selected{/if}>Neon</option>
+                                                <option value="forest" {if $config.chatbot_theme_preset == 'forest'}selected{/if}>Forest</option>
+                                                <option value="modern" {if $config.chatbot_theme_preset == 'modern'}selected{/if}>Modern</option>
+                                                <option value="aesthetic" {if $config.chatbot_theme_preset == 'aesthetic'}selected{/if}>Aesthetic</option>
+                                                <option value="futuristic" {if $config.chatbot_theme_preset == 'futuristic'}selected{/if}>Futuristic</option>
+                                            </select>
+                                            <span class="chatbot-helper">Mengubah preset akan mengisi nilai di bawah. Ubah manual => preset menjadi Custom.</span>
+                                        </div>
+                                    </div>
+                                    <div class="alert alert-info chatbot-theme-hint js-chatbot-theme-hint" style="display: none;">
+                                        Preset tema aktif. Pilih <strong>Custom</strong> untuk menampilkan pengaturan styling lanjutan.
+                                    </div>
+                                    <div class="chatbot-custom-settings js-chatbot-custom-settings">
+                                        <div class="chatbot-card">
+                                            <h3 class="chatbot-card__title">Mode Pengaturan</h3>
+                                            <p class="chatbot-card__subtitle">Gunakan preset cepat, atau tampilkan input CSS lanjutan jika perlu.</p>
+                                            <div class="form-group mb-0">
+                                                <label>
+                                                    <input type="checkbox" id="chatbot_show_advanced_controls" />
+                                                    Tampilkan input CSS lanjutan (teks)
+                                                </label>
+                                                <span class="chatbot-helper">Mode lanjutan memberi akses input manual untuk gradient/var CSS.</span>
+                                            </div>
+                                        </div>
+                                {/if}
+
+                                {if $chatbot_active_section eq 'chat-experience'}
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Launcher & Tampilan</h3>
+                                        <p class="chatbot-card__subtitle">Atur judul, label tombol, avatar, dan ukuran jendela chat.</p>
+                                        <div class="chatbot-grid">
+                                            <div class="form-group">
+                                                <label for="chatbot_title">Chat Title</label>
+                                                <input type="text" id="chatbot_title" name="chatbot_title" class="form-control" value="{$config.chatbot_title|escape}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_button_label">Button Label</label>
+                                                <input type="text" id="chatbot_button_label" name="chatbot_button_label" class="form-control" value="{$config.chatbot_button_label|escape}" placeholder="{$chatbot_defaults.chatbot_button_label|escape}">
+                                                <span class="chatbot-helper">Kosongkan untuk memakai judul chat sebagai teks tombol.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_button_side">Button Position</label>
+                                                <select id="chatbot_button_side" name="chatbot_button_side" class="form-control">
+                                                    <option value="right" {if $config.chatbot_button_side == 'right'}selected{/if}>Right</option>
+                                                    <option value="left" {if $config.chatbot_button_side == 'left'}selected{/if}>Left</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_avatar_url">Avatar URL</label>
+                                                <input type="url" id="chatbot_avatar_url" name="chatbot_avatar_url" class="form-control" value="{$config.chatbot_avatar_url|escape}" placeholder="https://cdn.example.com/avatar.png">
+                                                <span class="chatbot-helper">Opsional, gunakan gambar 1:1 untuk ikon chatbot.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_frame_mode">Frame Mode</label>
+                                                <select id="chatbot_frame_mode" name="chatbot_frame_mode" class="form-control">
+                                                    <option value="fixed" {if $config.chatbot_frame_mode == 'fixed'}selected{/if}>Fixed size</option>
+                                                    <option value="auto" {if $config.chatbot_frame_mode == 'auto'}selected{/if}>Auto fit height</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group" data-frame-mode="fixed">
+                                                <label for="chatbot_frame_width">Frame Width (px)</label>
+                                                <input type="number" min="280" max="640" id="chatbot_frame_width" name="chatbot_frame_width" class="form-control" value="{$config.chatbot_frame_width|escape}">
+                                            </div>
+                                            <div class="form-group" data-frame-mode="fixed">
+                                                <label for="chatbot_frame_height">Frame Height (px)</label>
+                                                <input type="number" min="320" max="800" id="chatbot_frame_height" name="chatbot_frame_height" class="form-control" value="{$config.chatbot_frame_height|escape}">
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Interaksi Pengguna</h3>
+                                        <p class="chatbot-card__subtitle">Kelola pesan sambutan, animasi mengetik, serta batas input.</p>
+                                        <div class="chatbot-grid">
+                                            <div class="form-group">
+                                                <label for="chatbot_welcome_enabled">Enable Welcome Message</label>
+                                                <select id="chatbot_welcome_enabled" name="chatbot_welcome_enabled" class="form-control">
+                                                    <option value="1" {if $config.chatbot_welcome_enabled == '1'}selected{/if}>Yes</option>
+                                                    <option value="0" {if $config.chatbot_welcome_enabled == '0'}selected{/if}>No</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_message_format">Message Format</label>
+                                                <select id="chatbot_message_format" name="chatbot_message_format" class="form-control">
+                                                    <option value="plain" {if $config.chatbot_message_format == 'plain'}selected{/if}>Plain text</option>
+                                                    <option value="markdown" {if $config.chatbot_message_format == 'markdown'}selected{/if}>Markdown (safe)</option>
+                                                    <option value="markdown_v2" {if $config.chatbot_message_format == 'markdown_v2'}selected{/if}>Markdown V2 (underline/spoiler)</option>
+                                                </select>
+                                                <span class="chatbot-helper">Markdown mendukung <strong>bold</strong>, <em>italic</em>, <code>code</code>, daftar, quote, link. V2 menambah <u>underline</u> &amp; spoiler.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_typing_mode">Typing Indicator</label>
+                                                <select id="chatbot_typing_mode" name="chatbot_typing_mode" class="form-control">
+                                                    <option value="off" {if $config.chatbot_typing_mode == 'off'}selected{/if}>Disabled</option>
+                                                    <option value="wpm" {if $config.chatbot_typing_mode == 'wpm'}selected{/if}>Simulate typing speed</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group" data-typing-mode="wpm">
+                                                <label for="chatbot_typing_wpm">Typing Speed (WPM)</label>
+                                                <input type="number" min="60" max="900" id="chatbot_typing_wpm" name="chatbot_typing_wpm" class="form-control" value="{$config.chatbot_typing_wpm|escape}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_user_input_max_chars">Max Message Length</label>
+                                                <input type="number" min="100" max="4000" id="chatbot_user_input_max_chars" name="chatbot_user_input_max_chars" class="form-control" value="{$config.chatbot_user_input_max_chars|escape}">
+                                            </div>
+                                            <div class="form-group" style="grid-column: 1 / -1;">
+                                                <label for="chatbot_welcome_message">Welcome Message</label>
+                                                <textarea id="chatbot_welcome_message" name="chatbot_welcome_message" class="form-control">{$config.chatbot_welcome_message|escape}</textarea>
+                                                <span class="chatbot-helper">Pesan pertama yang dikirim chatbot ketika panel dibuka pertama kali.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                {/if}
+
+                                {if $chatbot_active_section eq 'styling'}
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Header &amp; Buttons</h3>
+                                        <p class="chatbot-card__subtitle">Atur tampilan header chat, launcher, dan tombol kirim.</p>
+                                        <div class="chatbot-grid">
+                                            <div class="form-group">
+                                                <label for="chatbot_header_bg">Header Background</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_header_bg" name="chatbot_header_bg" class="form-control js-chatbot-color-text" value="{$config.chatbot_header_bg|escape}" placeholder="linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-accent))">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_header_bg_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_header_bg" value="#0d9488" aria-label="Pick header background">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_header_bg">
+                                                        <option value="">Tema default (gradient)</option>
+                                                        <option value="linear-gradient(135deg, #0d9488, #06b6d4)">Teal gradient</option>
+                                                        <option value="linear-gradient(135deg, #2563eb, #1d4ed8)">Blue gradient</option>
+                                                        <option value="linear-gradient(135deg, #7c3aed, #6d28d9)">Purple gradient</option>
+                                                        <option value="linear-gradient(135deg, #f97316, #ea580c)">Orange gradient</option>
+                                                        <option value="linear-gradient(135deg, #111827, #334155)">Slate gradient</option>
+                                                        <option value="#0f172a">Solid dark</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                                <span class="chatbot-helper">Kosongkan untuk memakai tema default. Color picker hanya untuk warna solid.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_header_text">Header Text Color</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_header_text" name="chatbot_header_text" class="form-control js-chatbot-color-text" value="{$config.chatbot_header_text|escape}" placeholder="#ffffff">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_header_text_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_header_text" value="#ffffff" aria-label="Pick header text color">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_header_text">
+                                                        <option value="">Tema default</option>
+                                                        <option value="#ffffff">White</option>
+                                                        <option value="#f8fafc">Soft White</option>
+                                                        <option value="#0f172a">Dark</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_launcher_bg">Launcher Button Background</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_launcher_bg" name="chatbot_launcher_bg" class="form-control js-chatbot-color-text" value="{$config.chatbot_launcher_bg|escape}" placeholder="linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-primary-strong))">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_launcher_bg_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_launcher_bg" value="#0d9488" aria-label="Pick launcher background">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_launcher_bg">
+                                                        <option value="">Tema default (gradient)</option>
+                                                        <option value="linear-gradient(135deg, #0d9488, #0f766e)">Teal gradient</option>
+                                                        <option value="linear-gradient(135deg, #2563eb, #1d4ed8)">Blue gradient</option>
+                                                        <option value="linear-gradient(135deg, #7c3aed, #6d28d9)">Purple gradient</option>
+                                                        <option value="linear-gradient(135deg, #f97316, #ea580c)">Orange gradient</option>
+                                                        <option value="linear-gradient(135deg, #111827, #334155)">Slate gradient</option>
+                                                        <option value="#0f172a">Solid dark</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_launcher_text">Launcher Text Color</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_launcher_text" name="chatbot_launcher_text" class="form-control js-chatbot-color-text" value="{$config.chatbot_launcher_text|escape}" placeholder="#ffffff">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_launcher_text_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_launcher_text" value="#ffffff" aria-label="Pick launcher text color">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_launcher_text">
+                                                        <option value="">Tema default</option>
+                                                        <option value="#ffffff">White</option>
+                                                        <option value="#0f172a">Dark</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_send_bg">Send Button Background</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_send_bg" name="chatbot_send_bg" class="form-control js-chatbot-color-text" value="{$config.chatbot_send_bg|escape}" placeholder="linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-accent))">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_send_bg_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_send_bg" value="#0d9488" aria-label="Pick send button background">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_send_bg">
+                                                        <option value="">Tema default (gradient)</option>
+                                                        <option value="linear-gradient(135deg, #0d9488, #06b6d4)">Teal gradient</option>
+                                                        <option value="linear-gradient(135deg, #2563eb, #1d4ed8)">Blue gradient</option>
+                                                        <option value="linear-gradient(135deg, #7c3aed, #6d28d9)">Purple gradient</option>
+                                                        <option value="linear-gradient(135deg, #f97316, #ea580c)">Orange gradient</option>
+                                                        <option value="linear-gradient(135deg, #111827, #334155)">Slate gradient</option>
+                                                        <option value="#0f172a">Solid dark</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_send_text">Send Icon Color</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_send_text" name="chatbot_send_text" class="form-control js-chatbot-color-text" value="{$config.chatbot_send_text|escape}" placeholder="#ffffff">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_send_text_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_send_text" value="#ffffff" aria-label="Pick send icon color">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_send_text">
+                                                        <option value="">Tema default</option>
+                                                        <option value="#ffffff">White</option>
+                                                        <option value="#e2e8f0">Soft Gray</option>
+                                                        <option value="#0f172a">Dark</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Chat Box &amp; Input</h3>
+                                        <p class="chatbot-card__subtitle">Atur warna panel chat, area pesan, dan input.</p>
+                                        <div class="chatbot-grid">
+                                            <div class="form-group">
+                                                <label for="chatbot_frame_bg">Chat Box Background</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_frame_bg" name="chatbot_frame_bg" class="form-control js-chatbot-color-text" value="{$config.chatbot_frame_bg|escape}" placeholder="var(--chatbot-surface)">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_frame_bg_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_frame_bg" value="#ffffff" aria-label="Pick chat box background">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_frame_bg">
+                                                            <option value="">Tema default</option>
+                                                            <option value="#ffffff">White</option>
+                                                            <option value="#f8fafc">Soft Gray</option>
+                                                            <option value="#eef2ff">Soft Indigo</option>
+                                                            <option value="#0f172a">Dark</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_messages_bg">Messages Background</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_messages_bg" name="chatbot_messages_bg" class="form-control js-chatbot-color-text" value="{$config.chatbot_messages_bg|escape}" placeholder="var(--chatbot-bg)">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_messages_bg_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_messages_bg" value="#f1f6f8" aria-label="Pick messages background">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_messages_bg">
+                                                            <option value="">Tema default</option>
+                                                            <option value="#f1f6f8">Soft Gray</option>
+                                                            <option value="#eef2ff">Soft Indigo</option>
+                                                            <option value="#ecfeff">Soft Cyan</option>
+                                                            <option value="#0b1220">Dark</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_input_bg">Input Background</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_input_bg" name="chatbot_input_bg" class="form-control js-chatbot-color-text" value="{$config.chatbot_input_bg|escape}" placeholder="#f8fafc">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_input_bg_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_input_bg" value="#f8fafc" aria-label="Pick input background">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_input_bg">
+                                                            <option value="">Tema default</option>
+                                                            <option value="#f8fafc">Soft Gray</option>
+                                                            <option value="#ffffff">White</option>
+                                                            <option value="#eef2ff">Soft Indigo</option>
+                                                            <option value="#0b1220">Dark</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_input_text">Input Text Color</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_input_text" name="chatbot_input_text" class="form-control js-chatbot-color-text" value="{$config.chatbot_input_text|escape}" placeholder="var(--chatbot-text)">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_input_text_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_input_text" value="#0f172a" aria-label="Pick input text color">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_input_text">
+                                                            <option value="">Tema default</option>
+                                                            <option value="#0f172a">Dark</option>
+                                                            <option value="#1f2937">Gray 800</option>
+                                                            <option value="#ffffff">White</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_input_border">Input Border Color</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_input_border" name="chatbot_input_border" class="form-control js-chatbot-color-text" value="{$config.chatbot_input_border|escape}" placeholder="rgba(148, 163, 184, 0.45)">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_input_border_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_input_border" value="#94a3b8" aria-label="Pick input border color">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_input_border">
+                                                            <option value="">Tema default</option>
+                                                            <option value="#94a3b8">Slate 400</option>
+                                                            <option value="#cbd5f5">Slate 300</option>
+                                                            <option value="#e2e8f0">Slate 200</option>
+                                                            <option value="transparent">Transparent</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_input_area_bg">Input Bar Background</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_input_area_bg" name="chatbot_input_area_bg" class="form-control js-chatbot-color-text" value="{$config.chatbot_input_area_bg|escape}" placeholder="rgba(255, 255, 255, 0.95)">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_input_area_bg_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_input_area_bg" value="#ffffff" aria-label="Pick input bar background">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_input_area_bg">
+                                                            <option value="">Tema default</option>
+                                                            <option value="rgba(255, 255, 255, 0.95)">Light glass</option>
+                                                            <option value="rgba(15, 23, 42, 0.85)">Dark glass</option>
+                                                            <option value="#ffffff">Solid white</option>
+                                                            <option value="#0f172a">Solid dark</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <span class="chatbot-helper">Glass cocok untuk efek blur. Color picker hanya untuk solid.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_input_area_padding_x">Input Bar Padding X (px)</label>
+                                                <input type="number" min="6" max="24" id="chatbot_input_area_padding_x" name="chatbot_input_area_padding_x" class="form-control" value="{$config.chatbot_input_area_padding_x|escape}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_input_area_padding_y">Input Bar Padding Y (px)</label>
+                                                <input type="number" min="6" max="24" id="chatbot_input_area_padding_y" name="chatbot_input_area_padding_y" class="form-control" value="{$config.chatbot_input_area_padding_y|escape}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_input_area_blur">Input Bar Blur (px)</label>
+                                                <input type="number" min="0" max="20" id="chatbot_input_area_blur" name="chatbot_input_area_blur" class="form-control" value="{$config.chatbot_input_area_blur|escape}">
+                                                <span class="chatbot-helper">Isi 0 untuk menonaktifkan blur.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Bubble &amp; Typography</h3>
+                                        <p class="chatbot-card__subtitle">Sesuaikan warna bubble, ukuran teks, padding, dan font agar tampilan chat konsisten.</p>
+                                        <div class="chatbot-grid">
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_bot_bg">Bot Bubble Background</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_bubble_bot_bg" name="chatbot_bubble_bot_bg" class="form-control js-chatbot-color-text" value="{$config.chatbot_bubble_bot_bg|escape}" placeholder="var(--chatbot-surface)">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_bubble_bot_bg_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_bubble_bot_bg" value="#ffffff" aria-label="Pick bot bubble background">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_bubble_bot_bg">
+                                                        <option value="">Tema default</option>
+                                                        <option value="#ffffff">White</option>
+                                                        <option value="#f8fafc">Soft Gray</option>
+                                                        <option value="#eff6ff">Soft Blue</option>
+                                                        <option value="#ecfeff">Soft Cyan</option>
+                                                        <option value="#f0fdf4">Soft Green</option>
+                                                        <option value="#f5f3ff">Soft Purple</option>
+                                                        <option value="#fff1f2">Soft Rose</option>
+                                                        <option value="#111827">Slate 900</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                                <span class="chatbot-helper">Kosongkan untuk mengikuti tema. Color picker hanya untuk warna solid.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_bot_text">Bot Text Color</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_bubble_bot_text" name="chatbot_bubble_bot_text" class="form-control js-chatbot-color-text" value="{$config.chatbot_bubble_bot_text|escape}" placeholder="var(--chatbot-text)">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_bubble_bot_text_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_bubble_bot_text" value="#0f172a" aria-label="Pick bot text color">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_bubble_bot_text">
+                                                        <option value="">Tema default</option>
+                                                        <option value="#0f172a">Slate 900</option>
+                                                        <option value="#1f2937">Gray 800</option>
+                                                        <option value="#475569">Slate 600</option>
+                                                        <option value="#0f766e">Teal 700</option>
+                                                        <option value="#0ea5e9">Sky 500</option>
+                                                        <option value="#ffffff">White</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_bot_border">Bot Border Color</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_bubble_bot_border" name="chatbot_bubble_bot_border" class="form-control js-chatbot-color-text" value="{$config.chatbot_bubble_bot_border|escape}" placeholder="var(--chatbot-border)">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_bubble_bot_border_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_bubble_bot_border" value="#e2e8f0" aria-label="Pick bot border color">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_bubble_bot_border">
+                                                        <option value="">Tema default</option>
+                                                        <option value="#e2e8f0">Slate 200</option>
+                                                        <option value="#cbd5f5">Slate 300</option>
+                                                        <option value="#94a3b8">Slate 400</option>
+                                                        <option value="transparent">Transparent</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_user_bg">User Bubble Background</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_bubble_user_bg" name="chatbot_bubble_user_bg" class="form-control js-chatbot-color-text" value="{$config.chatbot_bubble_user_bg|escape}" placeholder="linear-gradient(135deg, var(--chatbot-primary), var(--chatbot-primary-strong))">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_bubble_user_bg_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_bubble_user_bg" value="#0d9488" aria-label="Pick user bubble background">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_bubble_user_bg">
+                                                        <option value="">Tema default (gradient)</option>
+                                                        <option value="linear-gradient(135deg, #0d9488, #0f766e)">Teal gradient</option>
+                                                        <option value="linear-gradient(135deg, #2563eb, #1d4ed8)">Blue gradient</option>
+                                                        <option value="linear-gradient(135deg, #7c3aed, #6d28d9)">Purple gradient</option>
+                                                        <option value="linear-gradient(135deg, #f97316, #ea580c)">Orange gradient</option>
+                                                        <option value="linear-gradient(135deg, #111827, #334155)">Slate gradient</option>
+                                                        <option value="#0f172a">Solid dark</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_user_text">User Text Color</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_bubble_user_text" name="chatbot_bubble_user_text" class="form-control js-chatbot-color-text" value="{$config.chatbot_bubble_user_text|escape}" placeholder="#ffffff">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_bubble_user_text_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_bubble_user_text" value="#ffffff" aria-label="Pick user text color">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_bubble_user_text">
+                                                        <option value="">Tema default</option>
+                                                        <option value="#ffffff">White</option>
+                                                        <option value="#f8fafc">Soft White</option>
+                                                        <option value="#0f172a">Dark</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_user_border">User Border Color</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_bubble_user_border" name="chatbot_bubble_user_border" class="form-control js-chatbot-color-text" value="{$config.chatbot_bubble_user_border|escape}" placeholder="transparent">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <input type="color" id="chatbot_bubble_user_border_picker" class="form-control chatbot-color-input js-chatbot-color-picker" data-text-input="chatbot_bubble_user_border" value="#0d9488" aria-label="Pick user border color">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-color-preset" data-text-input="chatbot_bubble_user_border">
+                                                        <option value="">Tema default</option>
+                                                        <option value="transparent">Transparent</option>
+                                                        <option value="#0d9488">Teal</option>
+                                                        <option value="#2563eb">Blue</option>
+                                                        <option value="#7c3aed">Purple</option>
+                                                    </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_radius">Bubble Radius (px)</label>
+                                                <input type="number" min="0" max="40" id="chatbot_bubble_radius" name="chatbot_bubble_radius" class="form-control" value="{$config.chatbot_bubble_radius|escape}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_padding_y">Bubble Padding Y (px)</label>
+                                                <input type="number" min="0" max="30" id="chatbot_bubble_padding_y" name="chatbot_bubble_padding_y" class="form-control" value="{$config.chatbot_bubble_padding_y|escape}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_padding_x">Bubble Padding X (px)</label>
+                                                <input type="number" min="0" max="30" id="chatbot_bubble_padding_x" name="chatbot_bubble_padding_x" class="form-control" value="{$config.chatbot_bubble_padding_x|escape}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_font_size">Bubble Font Size (px)</label>
+                                                <input type="number" min="10" max="20" id="chatbot_bubble_font_size" name="chatbot_bubble_font_size" class="form-control" value="{$config.chatbot_bubble_font_size|escape}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_line_height">Bubble Line Height</label>
+                                                <input type="number" step="0.05" min="1.1" max="2" id="chatbot_bubble_line_height" name="chatbot_bubble_line_height" class="form-control" value="{$config.chatbot_bubble_line_height|escape}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_bubble_max_width">Bubble Max Width (%)</label>
+                                                <input type="number" min="60" max="100" id="chatbot_bubble_max_width" name="chatbot_bubble_max_width" class="form-control" value="{$config.chatbot_bubble_max_width|escape}">
+                                                <span class="chatbot-helper">Mengatur lebar maksimum bubble relatif terhadap area chat.</span>
+                                            </div>
+                                            <div class="form-group" style="grid-column: 1 / -1;">
+                                                <label for="chatbot_message_font_family">Message Font Family</label>
+                                                <div class="chatbot-field-row chatbot-field-row--with-advanced">
+                                                    <div class="chatbot-advanced-field">
+                                                        <input type="text" id="chatbot_message_font_family" name="chatbot_message_font_family" class="form-control js-chatbot-font-text" value="{$config.chatbot_message_font_family|escape}" placeholder="Poppins, sans-serif">
+                                                    </div>
+                                                    <div class="chatbot-field-controls">
+                                                        <select class="form-control chatbot-select-compact js-chatbot-font-preset" data-text-input="chatbot_message_font_family">
+                                                            <option value="">Tema default</option>
+                                                            <option value="system-ui, -apple-system, \"Segoe UI\", sans-serif">System UI</option>
+                                                            <option value="Poppins, \"Segoe UI\", sans-serif">Poppins</option>
+                                                            <option value="\"Plus Jakarta Sans\", \"Segoe UI\", sans-serif">Plus Jakarta Sans</option>
+                                                            <option value="\"DM Sans\", \"Segoe UI\", sans-serif">DM Sans</option>
+                                                            <option value="\"IBM Plex Sans\", \"Segoe UI\", sans-serif">IBM Plex Sans</option>
+                                                            <option value="\"Inter\", \"Segoe UI\", sans-serif">Inter</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <span class="chatbot-helper">Kosongkan untuk mengikuti font default tema. Pilih preset atau isi custom.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    </div>
+                                {/if}
+
+                                {if $chatbot_active_section eq 'chat-experience'}
+                                    <div class="chatbot-card">
+                                        <h3 class="chatbot-card__title">Kebijakan Histori</h3>
+                                        <p class="chatbot-card__subtitle">Atur bagaimana riwayat percakapan disimpan di sisi browser pengguna.</p>
+                                        <div class="chatbot-grid">
+                                            <div class="form-group">
+                                                <label for="chatbot_history_mode">History Mode</label>
+                                                <select id="chatbot_history_mode" name="chatbot_history_mode" class="form-control">
+                                                    <option value="ttl" {if $config.chatbot_history_mode == 'ttl'}selected{/if}>Time To Live (TTL)</option>
+                                                    <option value="count" {if $config.chatbot_history_mode == 'count'}selected{/if}>Max Messages</option>
+                                                </select>
+                                                <span class="chatbot-helper">TTL akan membersihkan riwayat berdasarkan umur pesan, Count berdasarkan jumlah pesan terakhir.</span>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_history_ttl">History TTL (menit)</label>
+                                                <input type="number" min="30" id="chatbot_history_ttl" name="chatbot_history_ttl" class="form-control" value="{$config.chatbot_history_ttl|escape}">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="chatbot_history_max_messages">History Max Messages</label>
+                                                <input type="number" min="1" id="chatbot_history_max_messages" name="chatbot_history_max_messages" class="form-control" value="{$config.chatbot_history_max_messages|escape}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                {/if}
+
+                            </div>
+                        </div>
+                        <div class="chatbot-form-actions">
+                            <div class="chatbot-form-note">AI Chatbot didukung dan terintegrasi penuh dengan <a href="https://gateway.drnet.biz.id" target="_blank" rel="noopener noreferrer">DRNet Gateway</a>.</div>
+                            <button type="submit" name="save" value="save" class="btn btn-primary">Save Settings</button>
+                        </div>
+                    </form>
                 </div>
             </div>
-            <div class="chatbot-header__actions">
-                {if $handoff_enabled == '1'}
-                    <button type="button" class="chatbot-handoff" aria-label="{$handoff_label|escape}">{$handoff_label|escape}</button>
-                {/if}
-                <button type="button" class="chatbot-close" aria-label="Close chat">&times;</button>
-            </div>
         </div>
-        <div class="chatbot-messages" role="log" aria-live="polite"></div>
-        <button type="button" class="chatbot-scroll-bottom" aria-label="Scroll to latest" title="Scroll to latest">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <polyline points="19 12 12 19 5 12"></polyline>
-            </svg>
-            <span class="chatbot-scroll-bottom__label">Pesan Terbaru</span>
-        </button>
-        <form class="chatbot-input-area" autocomplete="off">
-            <label class="chatbot-input__label" for="chatbot-input">Type your message</label>
-            <textarea id="chatbot-input" name="chatbot-input" placeholder="Compose your message..." maxlength="{$chatbot.chatbot_user_input_max_chars|default:1000|intval}" rows="1" autocomplete="off"></textarea>
-            <button type="submit" id="chatbot-send" aria-label="Send message">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-                <span class="chatbot-send-spinner" aria-hidden="true"></span>
-            </button>
-        </form>
     </div>
 </div>
 
-<div id="chatbot-image-viewer" class="chatbot-image-viewer" aria-hidden="true" role="dialog">
-    <img src="" alt="Chatbot image preview" />
-    <button type="button" class="chatbot-image-viewer__close" aria-label="Close image">&times;</button>
-</div>
-
+{literal}
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const root = document.getElementById('ai-chatbot-root');
-    if (!root || root.dataset.initialized === '1') {
-        return;
+(function(){
+    var authSelect = document.getElementById('chatbot_auth_type');
+    var authBlocks = document.querySelectorAll('.js-auth-block');
+    function syncAuth(){
+        if(!authSelect){ return; }
+        var mode = authSelect.value;
+        authBlocks.forEach(function(block){
+            var required = (block.getAttribute('data-auth-mode') || '').split(',');
+            if(required.indexOf(mode) !== -1){
+                block.classList.add('is-active');
+            } else {
+                block.classList.remove('is-active');
+            }
+        });
     }
-    root.dataset.initialized = '1';
+    if(authSelect){ authSelect.addEventListener('change', syncAuth); syncAuth(); }
 
-    if (root.dataset.enabled !== '1') {
-        root.style.display = 'none';
-        return;
+    var adminEndpointToggle = document.getElementById('chatbot_admin_endpoint_enabled');
+    var adminEndpointBlocks = document.querySelectorAll('.js-admin-endpoint-block');
+    function syncAdminEndpoint(){
+        if(!adminEndpointToggle){ return; }
+        var enabled = adminEndpointToggle.value === '1';
+        adminEndpointBlocks.forEach(function(block){
+            if(enabled){
+                block.classList.add('is-active');
+            } else {
+                block.classList.remove('is-active');
+            }
+        });
+    }
+    if(adminEndpointToggle){ adminEndpointToggle.addEventListener('change', syncAdminEndpoint); syncAdminEndpoint(); }
+
+    var adminAuthSelect = document.getElementById('chatbot_admin_auth_type');
+    var adminAuthBlocks = document.querySelectorAll('.js-admin-auth-block');
+    function syncAdminAuth(){
+        if(!adminAuthSelect){ return; }
+        var mode = adminAuthSelect.value;
+        adminAuthBlocks.forEach(function(block){
+            var required = (block.getAttribute('data-auth-mode') || '').split(',');
+            if(required.indexOf(mode) !== -1){
+                block.classList.add('is-active');
+            } else {
+                block.classList.remove('is-active');
+            }
+        });
+    }
+    if(adminAuthSelect){ adminAuthSelect.addEventListener('change', syncAdminAuth); syncAdminAuth(); }
+
+    var typingSelect = document.getElementById('chatbot_typing_mode');
+    var typingBlocks = document.querySelectorAll('[data-typing-mode]');
+    function syncTyping(){
+        if(!typingSelect){ return; }
+        var mode = typingSelect.value;
+        typingBlocks.forEach(function(block){
+            block.style.display = (block.getAttribute('data-typing-mode') === mode) ? '' : 'none';
+        });
+    }
+    if(typingSelect){ typingSelect.addEventListener('change', syncTyping); syncTyping(); }
+
+    var frameSelect = document.getElementById('chatbot_frame_mode');
+    var frameBlocks = document.querySelectorAll('[data-frame-mode]');
+    function syncFrame(){
+        if(!frameSelect){ return; }
+        var mode = frameSelect.value;
+        frameBlocks.forEach(function(block){
+            block.style.display = (block.getAttribute('data-frame-mode') === mode) ? '' : 'none';
+        });
+    }
+    if(frameSelect){ frameSelect.addEventListener('change', syncFrame); syncFrame(); }
+
+    var advancedToggle = document.getElementById('chatbot_show_advanced_controls');
+    var advancedRows = document.querySelectorAll('.chatbot-field-row--with-advanced');
+    function setAdvancedMode(isOn){
+        advancedRows.forEach(function(row){
+            if(isOn){
+                row.classList.add('is-advanced');
+            } else {
+                row.classList.remove('is-advanced');
+            }
+        });
+    }
+    if(advancedToggle){
+        var storedAdvanced = localStorage.getItem('ai_chatbot_admin_advanced');
+        var initialAdvanced = storedAdvanced === '1';
+        advancedToggle.checked = initialAdvanced;
+        setAdvancedMode(initialAdvanced);
+        advancedToggle.addEventListener('change', function(){
+            var enabled = advancedToggle.checked;
+            localStorage.setItem('ai_chatbot_admin_advanced', enabled ? '1' : '0');
+            setAdvancedMode(enabled);
+        });
     }
 
-    const chatButton = document.getElementById('ai-chatbot-button');
-    const unreadBadge = chatButton ? chatButton.querySelector('.ai-chatbot-unread') : null;
-    const chatFrame = document.getElementById('ai-chatbot-frame');
-    const closeButton = chatFrame ? chatFrame.querySelector('.chatbot-close') : null;
-    const handoffButton = chatFrame ? chatFrame.querySelector('.chatbot-handoff') : null;
-    const messagesContainer = chatFrame ? chatFrame.querySelector('.chatbot-messages') : null;
-    const scrollButton = chatFrame ? chatFrame.querySelector('.chatbot-scroll-bottom') : null;
-    const form = chatFrame ? chatFrame.querySelector('.chatbot-input-area') : null;
-    const input = document.getElementById('chatbot-input');
-    const sendButton = document.getElementById('chatbot-send');
-    const statusEl = chatFrame ? chatFrame.querySelector('.chatbot-header__status') : null;
-    const avatarImg = chatFrame ? chatFrame.querySelector('.chatbot-header__avatar') : null;
-    const imageViewer = document.getElementById('chatbot-image-viewer');
-    const imageViewerImg = imageViewer ? imageViewer.querySelector('img') : null;
-    const imageViewerClose = imageViewer ? imageViewer.querySelector('.chatbot-image-viewer__close') : null;
-
-    if (!chatButton || !chatFrame || !closeButton || !messagesContainer || !form || !input || !sendButton) {
-        console.error('AI Chatbot: required markup is missing.');
-        root.style.display = 'none';
-        return;
+    function isHexColor(value){
+        return /^#([0-9a-f]{3}){1,2}$/i.test(value || '');
     }
 
-    input.disabled = true;
-    sendButton.disabled = true;
+    function syncPickerWithText(textInput){
+        if(!textInput){ return; }
+        var pickerId = textInput.getAttribute('data-color-picker') || '';
+        var picker = pickerId ? document.getElementById(pickerId) : null;
+        if(!picker){ return; }
+        var value = textInput.value.trim();
+        if(isHexColor(value)){
+            picker.value = value;
+        }
+    }
 
-    const pageContext = "{if isset($_admin) && $_admin}admin{elseif isset($_user) && $_user}customer{/if}";
-    const contextParam = pageContext ? '&context=' + encodeURIComponent(pageContext) : '';
-    const bootstrapUrl = "{$app_url|escape:'javascript'}?_route=plugin/ai_chatbot_settings/bootstrap" + contextParam;
-    const statusUrl = "{$app_url|escape:'javascript'}?_route=plugin/ai_chatbot_settings/status" + contextParam;
-    const streamUrl = "{$app_url|escape:'javascript'}?_route=plugin/ai_chatbot_settings/stream" + contextParam;
-    let chatConfig = {};
-    let history = [];
-    let csrfToken = null;
-    let statusCheckInFlight = false;
-    let lastStatusCheckedAt = 0;
-    let handoffInFlight = false;
-    let handoffActive = false;
-    let handoffBound = false;
-    let handoffQueue = [];
-    let handoffQueueActive = false;
-    let handoffQueueSeq = 0;
-    let handoffStorageKey = null;
-    let handoffSessionId = null;
-    let handoffExpiresAt = 0;
-    let handoffExpiryTimer = null;
-    let lastInboundMessage = null;
-    let lastHandoffNotice = null;
-    let unreadCount = 0;
-    let unreadStorageKey = null;
-    const inboundIdCache = new Set();
-    const inboundIdQueue = [];
-    const inboundIdLimit = 120;
-    let baseStatusState = 'checking';
-    let baseStatusLabel = 'Checking...';
-    let streamSocket = null;
-    let streamInfo = null;
-    let streamReconnectTimer = null;
-    let handoffPollTimer = null;
-    let handoffPollingActive = false;
-    const handoffPollBaseMs = 5000;
-    const handoffPollMaxMs = 30000;
-    let handoffPollDelayMs = handoffPollBaseMs;
-    let rateLimitUntil = 0;
-    const handoffAckWaiters = new Map();
+    document.querySelectorAll('.js-chatbot-color-picker').forEach(function(picker){
+        var textId = picker.getAttribute('data-text-input');
+        var textInput = textId ? document.getElementById(textId) : null;
+        if(textInput){ textInput.setAttribute('data-color-picker', picker.id); }
+        if(textInput && isHexColor(textInput.value.trim())){
+            picker.value = textInput.value.trim();
+        }
+        picker.addEventListener('input', function(){
+            if(textInput){ textInput.value = picker.value; }
+        });
+    });
 
-    const visitorIdKey = 'ai_chatbot_visitor_id';
-    const sessionIdKey = 'ai_chatbot_session_id';
-    const historyModeRaw = "{$chatbot.chatbot_history_mode|default:'ttl'|escape:'javascript'}";
-    const historyTtlMinutesRaw = parseInt("{$chatbot.chatbot_history_ttl|default:360|escape:'javascript'}", 10);
-    const historyMaxRaw = parseInt("{$chatbot.chatbot_history_max_messages|default:50|escape:'javascript'}", 10);
-    const welcomeEnabledRaw = "{$chatbot.chatbot_welcome_enabled|default:'0'|escape:'javascript'}";
-    const welcomeMessage = "{$chatbot.chatbot_welcome_message|default:'Hello! How can I help you today?'|escape:'javascript'}";
-    const typingModeRaw = "{$chatbot.chatbot_typing_mode|default:'off'|escape:'javascript'}";
-    const typingWpmRaw = parseInt("{$chatbot.chatbot_typing_wpm|default:300|escape:'javascript'}", 10);
-    const frameModeRaw = "{$chatbot.chatbot_frame_mode|default:'fixed'|escape:'javascript'}";
-    const statusThrottleSecondsRaw = parseInt("{$chatbot.chatbot_status_throttle|default:30|escape:'javascript'}", 10);
-    const responseKeyRaw = "{$chatbot.chatbot_response_key|default:''|escape:'javascript'}";
-    const messageFormatRaw = "{$chatbot.chatbot_message_format|default:'markdown'|escape:'javascript'}";
-    const handoffEnabledRaw = "{$chatbot.chatbot_handoff_enabled|default:'0'|escape:'javascript'}";
-    const handoffLabelRaw = "{$handoff_label|escape:'javascript'}";
-    const handoffTimeoutRaw = parseInt("{$chatbot.chatbot_handoff_timeout|default:600|escape:'javascript'}", 10);
-    const handoffRateLimitRaw = parseInt("{$chatbot.chatbot_handoff_rate_limit|default:15|escape:'javascript'}", 10);
-    const handoffReasonRaw = "{$chatbot.chatbot_handoff_reason|default:'chat_dengan_admin'|escape:'javascript'}";
-    const handoffNoticeRaw = "{$chatbot.chatbot_handoff_notice|default:'Permintaan terkirim. Admin akan segera bergabung.'|escape:'javascript'}";
-    const metaScopeOverrideRaw = "{$chatbot.chatbot_meta_scope|default:''|escape:'javascript'}";
-    const metaEntityOverrideRaw = "{$chatbot.chatbot_meta_entity_id|default:''|escape:'javascript'}";
-    const metaOwnerOverrideRaw = "{$chatbot.chatbot_meta_owner_id|default:''|escape:'javascript'}";
-    const rateLimitDefaultMs = !isNaN(handoffRateLimitRaw) && handoffRateLimitRaw > 0
-        ? handoffRateLimitRaw * 1000
-        : 15000;
+    document.querySelectorAll('.js-chatbot-color-text').forEach(function(textInput){
+        textInput.addEventListener('input', function(){ syncPickerWithText(textInput); });
+    });
 
-    const settings = {
-        history_mode: historyModeRaw === 'count' ? 'count' : 'ttl',
-        history_ttl: !isNaN(historyTtlMinutesRaw) && historyTtlMinutesRaw > 0 ? historyTtlMinutesRaw * 60 * 1000 : 360 * 60 * 1000,
-        history_max_messages: !isNaN(historyMaxRaw) && historyMaxRaw > 0 ? historyMaxRaw : 50,
-        welcome_enabled: welcomeEnabledRaw === '1',
-        welcome_message: welcomeMessage
+    document.querySelectorAll('.js-chatbot-color-preset').forEach(function(select){
+        var textId = select.getAttribute('data-text-input');
+        var textInput = textId ? document.getElementById(textId) : null;
+        select.addEventListener('change', function(){
+            if(!textInput){ return; }
+            textInput.value = select.value;
+            syncPickerWithText(textInput);
+        });
+    });
+
+    document.querySelectorAll('.js-chatbot-font-preset').forEach(function(select){
+        var textId = select.getAttribute('data-text-input');
+        var textInput = textId ? document.getElementById(textId) : null;
+        select.addEventListener('change', function(){
+            if(!textInput){ return; }
+            textInput.value = select.value;
+        });
+    });
+
+    var themeSelect = document.getElementById('chatbot_theme_preset');
+    var applyingTheme = false;
+    var customSettings = document.querySelectorAll('.js-chatbot-custom-settings');
+    var themeHints = document.querySelectorAll('.js-chatbot-theme-hint');
+    var chatbotThemes = {
+        ocean: {
+            chatbot_header_bg: 'linear-gradient(135deg, #0d9488, #06b6d4)',
+            chatbot_header_text: '#ffffff',
+            chatbot_launcher_bg: 'linear-gradient(135deg, #0d9488, #0f766e)',
+            chatbot_launcher_text: '#ffffff',
+            chatbot_send_bg: 'linear-gradient(135deg, #0d9488, #06b6d4)',
+            chatbot_send_text: '#ffffff',
+            chatbot_frame_bg: '#ffffff',
+            chatbot_messages_bg: '#f1f6f8',
+            chatbot_input_bg: '#f8fafc',
+            chatbot_input_text: '#0f172a',
+            chatbot_input_border: '#94a3b8',
+            chatbot_input_area_bg: 'rgba(255, 255, 255, 0.95)',
+            chatbot_input_area_padding_x: '14',
+            chatbot_input_area_padding_y: '12',
+            chatbot_input_area_blur: '8',
+            chatbot_bubble_bot_bg: '#ffffff',
+            chatbot_bubble_bot_text: '#0f172a',
+            chatbot_bubble_bot_border: '#e2e8f0',
+            chatbot_bubble_user_bg: 'linear-gradient(135deg, #0d9488, #0f766e)',
+            chatbot_bubble_user_text: '#ffffff',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '14',
+            chatbot_bubble_padding_x: '14',
+            chatbot_bubble_padding_y: '10',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.45',
+            chatbot_bubble_max_width: '80',
+            chatbot_message_font_family: 'Poppins, \"Segoe UI\", sans-serif'
+        },
+        dark_glass: {
+            chatbot_header_bg: 'linear-gradient(135deg, #0f172a, #1f2937)',
+            chatbot_header_text: '#e2e8f0',
+            chatbot_launcher_bg: 'linear-gradient(135deg, #111827, #1f2937)',
+            chatbot_launcher_text: '#e2e8f0',
+            chatbot_send_bg: 'linear-gradient(135deg, #1f2937, #0f172a)',
+            chatbot_send_text: '#e2e8f0',
+            chatbot_frame_bg: 'linear-gradient(180deg, #0f172a 0%, #0b1220 100%)',
+            chatbot_messages_bg: 'linear-gradient(180deg, #0b1220 0%, #111827 100%)',
+            chatbot_input_bg: '#0b1220',
+            chatbot_input_text: '#e2e8f0',
+            chatbot_input_border: 'rgba(148, 163, 184, 0.35)',
+            chatbot_input_area_bg: 'rgba(15, 23, 42, 0.85)',
+            chatbot_input_area_padding_x: '14',
+            chatbot_input_area_padding_y: '12',
+            chatbot_input_area_blur: '10',
+            chatbot_bubble_bot_bg: 'rgba(15, 23, 42, 0.7)',
+            chatbot_bubble_bot_text: '#e2e8f0',
+            chatbot_bubble_bot_border: 'rgba(148, 163, 184, 0.25)',
+            chatbot_bubble_user_bg: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+            chatbot_bubble_user_text: '#ffffff',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '16',
+            chatbot_bubble_padding_x: '14',
+            chatbot_bubble_padding_y: '10',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.45',
+            chatbot_bubble_max_width: '82',
+            chatbot_message_font_family: '\"Plus Jakarta Sans\", \"Segoe UI\", sans-serif'
+        },
+        minimal: {
+            chatbot_header_bg: '#ffffff',
+            chatbot_header_text: '#0f172a',
+            chatbot_launcher_bg: '#ffffff',
+            chatbot_launcher_text: '#0f172a',
+            chatbot_send_bg: '#0f172a',
+            chatbot_send_text: '#ffffff',
+            chatbot_frame_bg: '#ffffff',
+            chatbot_messages_bg: '#ffffff',
+            chatbot_input_bg: '#ffffff',
+            chatbot_input_text: '#0f172a',
+            chatbot_input_border: '#e2e8f0',
+            chatbot_input_area_bg: '#ffffff',
+            chatbot_input_area_padding_x: '12',
+            chatbot_input_area_padding_y: '10',
+            chatbot_input_area_blur: '0',
+            chatbot_bubble_bot_bg: '#f8fafc',
+            chatbot_bubble_bot_text: '#0f172a',
+            chatbot_bubble_bot_border: '#e2e8f0',
+            chatbot_bubble_user_bg: '#0f172a',
+            chatbot_bubble_user_text: '#ffffff',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '10',
+            chatbot_bubble_padding_x: '12',
+            chatbot_bubble_padding_y: '8',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.4',
+            chatbot_bubble_max_width: '78',
+            chatbot_message_font_family: 'system-ui, -apple-system, \"Segoe UI\", sans-serif'
+        },
+        neon: {
+            chatbot_header_bg: 'linear-gradient(135deg, #7c3aed, #ec4899)',
+            chatbot_header_text: '#ffffff',
+            chatbot_launcher_bg: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+            chatbot_launcher_text: '#ffffff',
+            chatbot_send_bg: 'linear-gradient(135deg, #ec4899, #f97316)',
+            chatbot_send_text: '#ffffff',
+            chatbot_frame_bg: '#0b1220',
+            chatbot_messages_bg: '#0b1220',
+            chatbot_input_bg: '#111827',
+            chatbot_input_text: '#e2e8f0',
+            chatbot_input_border: '#334155',
+            chatbot_input_area_bg: 'rgba(15, 23, 42, 0.85)',
+            chatbot_input_area_padding_x: '14',
+            chatbot_input_area_padding_y: '12',
+            chatbot_input_area_blur: '12',
+            chatbot_bubble_bot_bg: '#111827',
+            chatbot_bubble_bot_text: '#e2e8f0',
+            chatbot_bubble_bot_border: '#334155',
+            chatbot_bubble_user_bg: 'linear-gradient(135deg, #7c3aed, #ec4899)',
+            chatbot_bubble_user_text: '#ffffff',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '16',
+            chatbot_bubble_padding_x: '14',
+            chatbot_bubble_padding_y: '10',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.5',
+            chatbot_bubble_max_width: '82',
+            chatbot_message_font_family: '\"DM Sans\", \"Segoe UI\", sans-serif'
+        },
+        forest: {
+            chatbot_header_bg: 'linear-gradient(135deg, #166534, #22c55e)',
+            chatbot_header_text: '#ffffff',
+            chatbot_launcher_bg: 'linear-gradient(135deg, #166534, #15803d)',
+            chatbot_launcher_text: '#ffffff',
+            chatbot_send_bg: 'linear-gradient(135deg, #16a34a, #22c55e)',
+            chatbot_send_text: '#ffffff',
+            chatbot_frame_bg: '#ffffff',
+            chatbot_messages_bg: '#f0fdf4',
+            chatbot_input_bg: '#f8fafc',
+            chatbot_input_text: '#0f172a',
+            chatbot_input_border: '#86efac',
+            chatbot_input_area_bg: 'rgba(255, 255, 255, 0.92)',
+            chatbot_input_area_padding_x: '14',
+            chatbot_input_area_padding_y: '12',
+            chatbot_input_area_blur: '6',
+            chatbot_bubble_bot_bg: '#ffffff',
+            chatbot_bubble_bot_text: '#0f172a',
+            chatbot_bubble_bot_border: '#bbf7d0',
+            chatbot_bubble_user_bg: 'linear-gradient(135deg, #16a34a, #22c55e)',
+            chatbot_bubble_user_text: '#ffffff',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '14',
+            chatbot_bubble_padding_x: '14',
+            chatbot_bubble_padding_y: '10',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.45',
+            chatbot_bubble_max_width: '80',
+            chatbot_message_font_family: '\"IBM Plex Sans\", \"Segoe UI\", sans-serif'
+        },
+        modern: {
+            chatbot_header_bg: 'linear-gradient(135deg, #111827, #1f2937)',
+            chatbot_header_text: '#f9fafb',
+            chatbot_launcher_bg: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+            chatbot_launcher_text: '#ffffff',
+            chatbot_send_bg: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+            chatbot_send_text: '#ffffff',
+            chatbot_frame_bg: '#ffffff',
+            chatbot_messages_bg: '#f8fafc',
+            chatbot_input_bg: '#ffffff',
+            chatbot_input_text: '#0f172a',
+            chatbot_input_border: '#cbd5f5',
+            chatbot_input_area_bg: 'rgba(255, 255, 255, 0.94)',
+            chatbot_input_area_padding_x: '14',
+            chatbot_input_area_padding_y: '12',
+            chatbot_input_area_blur: '8',
+            chatbot_bubble_bot_bg: '#ffffff',
+            chatbot_bubble_bot_text: '#0f172a',
+            chatbot_bubble_bot_border: '#e2e8f0',
+            chatbot_bubble_user_bg: 'linear-gradient(135deg, #0ea5e9, #2563eb)',
+            chatbot_bubble_user_text: '#ffffff',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '14',
+            chatbot_bubble_padding_x: '14',
+            chatbot_bubble_padding_y: '10',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.45',
+            chatbot_bubble_max_width: '80',
+            chatbot_message_font_family: '\"Outfit\", \"Segoe UI\", sans-serif'
+        },
+        aesthetic: {
+            chatbot_header_bg: 'linear-gradient(135deg, #f472b6, #a855f7)',
+            chatbot_header_text: '#ffffff',
+            chatbot_launcher_bg: 'linear-gradient(135deg, #f472b6, #ec4899)',
+            chatbot_launcher_text: '#ffffff',
+            chatbot_send_bg: 'linear-gradient(135deg, #a855f7, #ec4899)',
+            chatbot_send_text: '#ffffff',
+            chatbot_frame_bg: '#fff7ed',
+            chatbot_messages_bg: '#fdf2f8',
+            chatbot_input_bg: '#ffffff',
+            chatbot_input_text: '#4b1b3a',
+            chatbot_input_border: '#f9a8d4',
+            chatbot_input_area_bg: 'rgba(255, 255, 255, 0.95)',
+            chatbot_input_area_padding_x: '14',
+            chatbot_input_area_padding_y: '12',
+            chatbot_input_area_blur: '6',
+            chatbot_bubble_bot_bg: '#ffffff',
+            chatbot_bubble_bot_text: '#4b1b3a',
+            chatbot_bubble_bot_border: '#fbcfe8',
+            chatbot_bubble_user_bg: 'linear-gradient(135deg, #f472b6, #a855f7)',
+            chatbot_bubble_user_text: '#ffffff',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '16',
+            chatbot_bubble_padding_x: '14',
+            chatbot_bubble_padding_y: '10',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.45',
+            chatbot_bubble_max_width: '80',
+            chatbot_message_font_family: '\"Plus Jakarta Sans\", \"Segoe UI\", sans-serif'
+        },
+        futuristic: {
+            chatbot_header_bg: 'linear-gradient(135deg, #0b1020, #111827)',
+            chatbot_header_text: '#e2e8f0',
+            chatbot_launcher_bg: 'linear-gradient(135deg, #06b6d4, #22d3ee)',
+            chatbot_launcher_text: '#0b1020',
+            chatbot_send_bg: 'linear-gradient(135deg, #22d3ee, #38bdf8)',
+            chatbot_send_text: '#0b1020',
+            chatbot_frame_bg: '#0b1020',
+            chatbot_messages_bg: 'rgba(2, 6, 23, 0.92)',
+            chatbot_input_bg: '#111827',
+            chatbot_input_text: '#e2e8f0',
+            chatbot_input_border: '#1f2937',
+            chatbot_input_area_bg: 'rgba(15, 23, 42, 0.85)',
+            chatbot_input_area_padding_x: '14',
+            chatbot_input_area_padding_y: '12',
+            chatbot_input_area_blur: '10',
+            chatbot_bubble_bot_bg: '#111827',
+            chatbot_bubble_bot_text: '#e2e8f0',
+            chatbot_bubble_bot_border: '#1f2937',
+            chatbot_bubble_user_bg: 'linear-gradient(135deg, #22d3ee, #38bdf8)',
+            chatbot_bubble_user_text: '#0b1020',
+            chatbot_bubble_user_border: 'transparent',
+            chatbot_bubble_radius: '14',
+            chatbot_bubble_padding_x: '14',
+            chatbot_bubble_padding_y: '10',
+            chatbot_bubble_font_size: '14',
+            chatbot_bubble_line_height: '1.5',
+            chatbot_bubble_max_width: '80',
+            chatbot_message_font_family: '\"Space Grotesk\", \"Segoe UI\", sans-serif'
+        }
     };
 
-    const typingMode = typingModeRaw === 'wpm' ? 'wpm' : 'off';
-    const typingWpm = !isNaN(typingWpmRaw) && typingWpmRaw > 0 ? typingWpmRaw : 300;
-    const frameMode = frameModeRaw === 'auto' ? 'auto' : 'fixed';
-    const statusThrottleSeconds = !isNaN(statusThrottleSecondsRaw) && statusThrottleSecondsRaw >= 0
-        ? statusThrottleSecondsRaw
-        : 30;
-    const statusThrottleMs = statusThrottleSeconds * 1000;
-    const responseKey = responseKeyRaw ? responseKeyRaw.trim() : '';
-    const messageFormat = messageFormatRaw === 'plain'
-        ? 'plain'
-        : (messageFormatRaw === 'markdown_v2' ? 'markdown_v2' : 'markdown');
-    const handoffEnabled = handoffEnabledRaw === '1';
-    const handoffLabel = handoffLabelRaw ? handoffLabelRaw.trim() : 'Chat dengan Admin';
-    const handoffTimeout = !isNaN(handoffTimeoutRaw) && handoffTimeoutRaw >= 0 ? handoffTimeoutRaw : 600;
-    const handoffReason = handoffReasonRaw ? handoffReasonRaw.trim() : 'chat_dengan_admin';
-    const handoffNotice = handoffNoticeRaw ? handoffNoticeRaw.trim() : '';
-    const metaScopeOverride = metaScopeOverrideRaw ? metaScopeOverrideRaw.trim() : '';
-    const metaEntityOverride = metaEntityOverrideRaw ? metaEntityOverrideRaw.trim() : '';
-    const metaOwnerOverride = metaOwnerOverrideRaw ? metaOwnerOverrideRaw.trim() : '';
-    let proxyTimeoutMs = 30000;
-    const debugEnabled = (() => {
-        try {
-            const params = new URLSearchParams(window.location.search);
-            if (params.get('chatbot_debug') === '1') {
-                return true;
-            }
-            return localStorage.getItem('ai_chatbot_debug') === '1';
-        } catch (error) {
-            return false;
-        }
-    })();
-
-    function debugLog() {
-        if (!debugEnabled) {
-            return;
-        }
-        try {
-            const args = Array.prototype.slice.call(arguments);
-            args.unshift('[AI Chatbot]');
-            console.log.apply(console, args);
-        } catch (error) {
-            // ignore logging errors
+    function setFieldValue(fieldId, value){
+        var field = document.getElementById(fieldId);
+        if(!field){ return; }
+        field.value = value;
+        if(field.classList.contains('js-chatbot-color-text')){
+            syncPickerWithText(field);
         }
     }
 
-    function parseRetryAfter(value) {
-        if (!value) {
-            return 0;
-        }
-        const seconds = parseInt(value, 10);
-        if (!isNaN(seconds)) {
-            return seconds * 1000;
-        }
-        const dateValue = Date.parse(value);
-        if (!isNaN(dateValue)) {
-            return Math.max(0, dateValue - Date.now());
-        }
-        return 0;
+    function applyThemePreset(name){
+        var theme = chatbotThemes[name];
+        if(!theme){ return; }
+        applyingTheme = true;
+        Object.keys(theme).forEach(function(fieldId){
+            setFieldValue(fieldId, theme[fieldId]);
+        });
+        applyingTheme = false;
     }
 
-    function getRateLimitDelay(response, data) {
-        let retryMs = 0;
-        if (response && response.headers && typeof response.headers.get === 'function') {
-            retryMs = parseRetryAfter(response.headers.get('Retry-After'));
-        }
-        if (!retryMs && data && typeof data === 'object') {
-            if (typeof data.retry_after_ms === 'number') {
-                retryMs = data.retry_after_ms;
-            } else if (typeof data.retry_after === 'number') {
-                retryMs = data.retry_after * 1000;
-            } else if (data.error && typeof data.error === 'object') {
-                if (typeof data.error.retry_after_ms === 'number') {
-                    retryMs = data.error.retry_after_ms;
-                } else if (typeof data.error.retry_after === 'number') {
-                    retryMs = data.error.retry_after * 1000;
-                }
-            }
-        }
-        if (!retryMs) {
-            retryMs = rateLimitDefaultMs;
-        }
-        return Math.min(120000, Math.max(3000, retryMs));
-    }
-
-    function markRateLimited(response, data) {
-        const delayMs = getRateLimitDelay(response, data);
-        rateLimitUntil = Math.max(rateLimitUntil, Date.now() + delayMs);
-        return delayMs;
-    }
-
-    function isRateLimited() {
-        return rateLimitUntil > Date.now();
-    }
-
-    function getRateLimitRemaining() {
-        return Math.max(0, rateLimitUntil - Date.now());
-    }
-
-    function isRateLimitResponse(response, data) {
-        if (response && response.status === 429) {
-            return true;
-        }
-        if (data && typeof data === 'object') {
-            if (data.code === 'RATE_LIMIT') {
-                return true;
-            }
-            if (data.error && typeof data.error === 'object' && data.error.code === 'RATE_LIMIT') {
-                return true;
-            }
-            if (typeof data.error === 'string' && data.error.indexOf('RATE_LIMIT') !== -1) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function formatCooldown(ms) {
-        const seconds = Math.ceil(ms / 1000);
-        if (!seconds || seconds <= 0) {
-            return 'sebentar lagi';
-        }
-        return seconds + ' detik';
-    }
-
-    function getRateLimitMessage() {
-        const remaining = getRateLimitRemaining();
-        if (remaining <= 0) {
-            return 'Terlalu banyak permintaan. Silakan coba lagi sebentar.';
-        }
-        return 'Terlalu banyak permintaan. Coba lagi dalam ' + formatCooldown(remaining) + '.';
-    }
-
-    if (chatFrame) {
-        chatFrame.dataset.frameMode = frameMode;
-    }
-
-    function updateProxyTimeoutFromConfig(config) {
-        if (!config || typeof config !== 'object') {
-            return;
-        }
-        const raw = config.request_timeout;
-        const seconds = typeof raw === 'number' ? raw : parseInt(raw, 10);
-        if (!isNaN(seconds) && seconds > 0) {
-            proxyTimeoutMs = Math.max(15000, seconds * 1000);
-        }
-    }
-
-    function applyStatus(state, label) {
-        if (!statusEl) {
-            return;
-        }
-        statusEl.dataset.status = state;
-        statusEl.textContent = label;
-        statusEl.classList.toggle('is-handoff', state === 'handoff');
-    }
-
-    function setStatus(state, label) {
-        baseStatusState = state;
-        baseStatusLabel = label;
-        if (!handoffActive) {
-            applyStatus(state, label);
-        }
-    }
-
-    function setSendLoading(isLoading) {
-        if (!sendButton) {
-            return;
-        }
-        sendButton.classList.toggle('is-loading', isLoading);
-        sendButton.setAttribute('aria-busy', isLoading ? 'true' : 'false');
-    }
-
-    function setHandoffActive(isActive, options = {}) {
-        if (!handoffEnabled) {
-            handoffActive = false;
-            handoffBound = false;
-            setHandoffSessionId(null, false);
-            if (root) {
-                root.dataset.handoffActive = '0';
-            }
-            updateHandoffUI();
-            stopStream(true);
-            stopHandoffPolling();
-            handoffExpiresAt = 0;
-            lastInboundMessage = null;
-            clearHandoffStorage();
-            clearHandoffExpiryTimer();
-            return;
-        }
-        handoffActive = Boolean(isActive);
-        if (options && typeof options.bound === 'boolean') {
-            handoffBound = options.bound;
-        }
-        if (root) {
-            root.dataset.handoffActive = handoffActive ? '1' : '0';
-        }
-        if (handoffButton) {
-            handoffButton.classList.toggle('is-active', handoffActive);
-        }
-        updateHandoffUI();
-        if (!handoffActive) {
-            stopStream(true);
-            stopHandoffPolling();
-            handoffExpiresAt = 0;
-            lastInboundMessage = null;
-            handoffBound = false;
-            handoffQueue = [];
-            handoffQueueActive = false;
-            setHandoffSessionId(null, false);
-            clearHandoffStorage();
-            clearHandoffExpiryTimer();
-            return;
-        }
-
-        const expiresAt = options && typeof options.expiresAt === 'number' ? options.expiresAt : 0;
-        if (expiresAt > 0) {
-            handoffExpiresAt = expiresAt;
-        } else {
-            refreshHandoffExpiry();
-        }
-        persistHandoffState();
-        scheduleHandoffExpiryCheck();
-        startHandoffPolling();
-    }
-
-    function updateHandoffUI() {
-        if (handoffActive) {
-            if (handoffBound) {
-                applyStatus('handoff', 'Admin Terhubung');
-            } else {
-                applyStatus('checking', 'Menunggu Admin');
+    function syncThemeVisibility(){
+        if(!themeSelect){ return; }
+        var isCustom = themeSelect.value === 'custom';
+        customSettings.forEach(function(section){
+            section.classList.toggle('is-hidden', !isCustom);
+        });
+        themeHints.forEach(function(hint){
+            hint.style.display = isCustom ? 'none' : 'block';
+        });
+        if(isCustom){
+            if(advancedToggle){
+                setAdvancedMode(advancedToggle.checked);
             }
         } else {
-            applyStatus(baseStatusState, baseStatusLabel);
-        }
-        if (handoffButton) {
-            const label = handoffActive ? 'Akhiri Percakapan' : handoffLabel;
-            handoffButton.textContent = label;
-            handoffButton.setAttribute('aria-label', label);
+            setAdvancedMode(false);
         }
     }
 
-    function stopStream(clearInfo = false) {
-        if (streamReconnectTimer) {
-            clearTimeout(streamReconnectTimer);
-            streamReconnectTimer = null;
-        }
-        clearHandoffAckWaiters('STREAM_CLOSED');
-        if (streamSocket) {
-            try {
-                streamSocket.close();
-            } catch (error) {
-                // ignore close errors
+    if(themeSelect){
+        themeSelect.addEventListener('change', function(){
+            if(themeSelect.value && themeSelect.value !== 'custom'){
+                applyThemePreset(themeSelect.value);
             }
-            streamSocket = null;
-        }
-        if (clearInfo) {
-            streamInfo = null;
-        }
-    }
-
-    function clearHandoffAckWaiters(reason) {
-        if (!handoffAckWaiters || handoffAckWaiters.size === 0) {
-            return;
-        }
-        handoffAckWaiters.forEach((waiter, id) => {
-            if (waiter && waiter.timer) {
-                clearTimeout(waiter.timer);
-            }
-            if (waiter && typeof waiter.resolve === 'function') {
-                waiter.resolve({ ok: false, error: reason || 'STREAM_CLOSED', id: id });
-            }
+            syncThemeVisibility();
         });
-        handoffAckWaiters.clear();
-    }
 
-    function canUseHandoffWs() {
-        return streamSocket && streamSocket.readyState === WebSocket.OPEN;
-    }
-
-    function sendHandoffWsMessage(text, timeoutMs) {
-        if (!canUseHandoffWs()) {
-            return Promise.resolve({ ok: false, error: 'STREAM_NOT_READY' });
-        }
-        const requestId = uuidv4();
-        const payload = {
-            type: 'handoff:send',
-            id: requestId,
-            text: text,
-            chatInput: text,
-            handoff_timeout_sec: handoffTimeout,
-            handoff_reason: handoffReason
-        };
-        return new Promise((resolve) => {
-            const timer = setTimeout(() => {
-                handoffAckWaiters.delete(requestId);
-                resolve({ ok: false, timeout: true, id: requestId });
-            }, timeoutMs);
-            handoffAckWaiters.set(requestId, { resolve: resolve, timer: timer });
-            try {
-                streamSocket.send(JSON.stringify(payload));
-            } catch (error) {
-                clearTimeout(timer);
-                handoffAckWaiters.delete(requestId);
-                resolve({ ok: false, error: 'SEND_FAILED', id: requestId });
-            }
-        });
-    }
-
-    function sendHandoffOffWs(reasonText) {
-        if (!canUseHandoffWs()) {
-            return Promise.resolve({ ok: false, error: 'STREAM_NOT_READY' });
-        }
-        const requestId = uuidv4();
-        const payload = {
-            type: 'handoff:off',
-            id: requestId,
-            text: reasonText || 'Sesi chat dengan Admin diakhiri oleh user.'
-        };
-        return new Promise((resolve) => {
-            const timer = setTimeout(() => {
-                handoffAckWaiters.delete(requestId);
-                resolve({ ok: false, timeout: true, id: requestId });
-            }, Math.max(8000, Math.floor(proxyTimeoutMs * 0.6)));
-            handoffAckWaiters.set(requestId, { resolve: resolve, timer: timer });
-            try {
-                streamSocket.send(JSON.stringify(payload));
-            } catch (error) {
-                clearTimeout(timer);
-                handoffAckWaiters.delete(requestId);
-                resolve({ ok: false, error: 'SEND_FAILED', id: requestId });
-            }
-        });
-    }
-
-    function persistHandoffState() {
-        if (!handoffStorageKey) {
-            return;
-        }
-        try {
-            if (!handoffActive) {
-                localStorage.removeItem(handoffStorageKey);
-                return;
-            }
-            const payload = {
-                active: 1,
-                expires_at: handoffExpiresAt || (Date.now() + (handoffTimeout * 1000)),
-                session_id: handoffSessionId || null
-            };
-            localStorage.setItem(handoffStorageKey, JSON.stringify(payload));
-        } catch (error) {
-            // ignore storage errors
-        }
-    }
-
-    function clearHandoffStorage() {
-        if (!handoffStorageKey) {
-            return;
-        }
-        try {
-            localStorage.removeItem(handoffStorageKey);
-        } catch (error) {
-            // ignore storage errors
-        }
-        handoffSessionId = null;
-    }
-
-    function refreshHandoffExpiry() {
-        if (!handoffActive) {
-            return;
-        }
-        const ttlMs = Math.max(0, handoffTimeout * 1000);
-        handoffExpiresAt = Date.now() + ttlMs;
-        persistHandoffState();
-    }
-
-    function clearHandoffExpiryTimer() {
-        if (handoffExpiryTimer) {
-            clearInterval(handoffExpiryTimer);
-            handoffExpiryTimer = null;
-        }
-    }
-
-    function scheduleHandoffExpiryCheck() {
-        if (handoffExpiryTimer) {
-            return;
-        }
-        handoffExpiryTimer = setInterval(() => {
-            if (!handoffActive || !handoffExpiresAt) {
-                return;
-            }
-            if (Date.now() >= handoffExpiresAt) {
-                const sessionToClose = getHandoffSessionId();
-                addHandoffNotice('Sesi handoff berakhir karena timeout.');
-                setHandoffActive(false);
-                sendHandoffOff(sessionToClose);
-            }
-        }, 30000);
-    }
-
-    function rememberInboundId(id) {
-        if (!id) {
-            return;
-        }
-        const key = String(id);
-        if (inboundIdCache.has(key)) {
-            return;
-        }
-        inboundIdCache.add(key);
-        inboundIdQueue.push(key);
-        if (inboundIdQueue.length > inboundIdLimit) {
-            const removed = inboundIdQueue.shift();
-            if (removed) {
-                inboundIdCache.delete(removed);
-            }
-        }
-    }
-
-    function hasInboundId(id) {
-        if (!id) {
-            return false;
-        }
-        return inboundIdCache.has(String(id));
-    }
-
-    function setMessageStatus(messageEl, state, label) {
-        if (!messageEl) {
-            return;
-        }
-        const contentEl = messageEl.querySelector('.chatbot-message-content');
-        if (!contentEl) {
-            return;
-        }
-        let statusEl = contentEl.querySelector('.chatbot-message-status');
-        if (!statusEl) {
-            statusEl = document.createElement('span');
-            statusEl.className = 'chatbot-message-status';
-            contentEl.appendChild(statusEl);
-        }
-        statusEl.textContent = label;
-        if (state) {
-            statusEl.dataset.status = state;
-        } else {
-            statusEl.removeAttribute('data-status');
-        }
-        if (state === 'sent') {
-            setTimeout(() => {
-                if (statusEl && statusEl.parentNode) {
-                    statusEl.remove();
-                }
-            }, 1200);
-        }
-    }
-
-    function updateUnreadBadge() {
-        if (!unreadBadge || !chatButton) {
-            return;
-        }
-        if (unreadCount > 0) {
-            const label = unreadCount > 99 ? '99+' : String(unreadCount);
-            unreadBadge.textContent = label;
-            unreadBadge.classList.add('is-visible');
-            chatButton.setAttribute('aria-label', chatButton.title + ' (' + label + ' pesan baru)');
-        } else {
-            unreadBadge.textContent = '';
-            unreadBadge.classList.remove('is-visible');
-            chatButton.setAttribute('aria-label', chatButton.title || '');
-        }
-    }
-
-    function setUnreadCount(count, persist = true) {
-        unreadCount = Math.max(0, Number(count) || 0);
-        if (persist && unreadStorageKey) {
-            try {
-                localStorage.setItem(unreadStorageKey, String(unreadCount));
-            } catch (error) {
-                // ignore storage errors
-            }
-        }
-        updateUnreadBadge();
-    }
-
-    function incrementUnreadCount() {
-        setUnreadCount(unreadCount + 1);
-    }
-
-    function trackInboundMessage(text, id = null) {
-        if (!text) {
-            return;
-        }
-        if (id) {
-            rememberInboundId(id);
-        }
-        lastInboundMessage = { text: text, at: Date.now(), id: id ? String(id) : null };
-        refreshHandoffExpiry();
-    }
-
-    function isDuplicateInbound(text, id = null) {
-        if (id && hasInboundId(id)) {
-            return true;
-        }
-        if (!text || !lastInboundMessage) {
-            return false;
-        }
-        if (lastInboundMessage.id) {
-            return false;
-        }
-        if (lastInboundMessage.text !== text) {
-            return false;
-        }
-        return (Date.now() - lastInboundMessage.at) < 4000;
-    }
-
-    function parseJsonSafe(payload) {
-        if (!payload) {
-            return null;
-        }
-        try {
-            return JSON.parse(payload);
-        } catch (error) {
-            return null;
-        }
-    }
-
-    function handleStreamPayload(payload) {
-        if (!payload || typeof payload !== 'object') {
-            return;
-        }
-        debugLog('Handoff stream message', payload);
-        if (!handoffActive) {
-            return;
-        }
-        const eventSessionId = payload.session_id || payload.sessionId || payload.session || '';
-        if (eventSessionId) {
-            setHandoffSessionId(eventSessionId);
-        }
-        const ackEvent = payload.event || payload.type || '';
-        if (ackEvent === 'handoff_ack') {
-            const ackId = payload.id || payload.request_id || payload.requestId || null;
-            if (ackId && handoffAckWaiters.has(ackId)) {
-                const waiter = handoffAckWaiters.get(ackId);
-                if (waiter && waiter.timer) {
-                    clearTimeout(waiter.timer);
-                }
-                handoffAckWaiters.delete(ackId);
-                if (waiter && typeof waiter.resolve === 'function') {
-                    waiter.resolve(payload);
-                }
-            }
-            return;
-        }
-        if (ackEvent === 'handoff:ready' || ackEvent === 'pong') {
-            return;
-        }
-        if (payload.event === 'handoff_off') {
-            setHandoffActive(false);
-            stopStream(true);
-            return;
-        }
-        if (payload.direction && payload.direction !== 'inbound') {
-            return;
-        }
-        const text = payload.body || payload.text || payload.message || payload.chatInput;
-        const inboundId = payload.id || payload.message_id || payload.db_message_id || null;
-        if (!text) {
-            return;
-        }
-        if (!handoffBound) {
-            handoffBound = true;
-            updateHandoffUI();
-            processHandoffQueue();
-        }
-        if (isDuplicateInbound(text, inboundId)) {
-            return;
-        }
-        addMessage('bot', text);
-        history.push({ sender: 'bot', text: text });
-        saveHistory();
-        trackInboundMessage(text, inboundId);
-    }
-
-    function appendStreamParams(url, params) {
-        try {
-            const parsed = new URL(url, window.location.href);
-            Object.keys(params).forEach((key) => {
-                const value = params[key];
-                if (value !== undefined && value !== null && value !== '') {
-                    parsed.searchParams.set(key, value);
+        var settingsForm = themeSelect.closest('form');
+        if(settingsForm){
+            settingsForm.addEventListener('input', function(event){
+                if(applyingTheme || !themeSelect){ return; }
+                var target = event.target;
+                if(!target || !target.name || target.id === 'chatbot_theme_preset'){ return; }
+                if(target.name.indexOf('chatbot_') === 0 && themeSelect.value !== 'custom'){
+                    themeSelect.value = 'custom';
+                    syncThemeVisibility();
                 }
             });
-            return parsed.toString();
-        } catch (error) {
-            return url;
-        }
-    }
-
-    function normalizeWsUrl(url) {
-        if (!url) {
-            return '';
-        }
-        if (window.location.protocol === 'https:' && url.startsWith('ws://')) {
-            return '';
-        }
-        return url;
-    }
-
-    function resolveStreamUrl(transport, token, sessionId) {
-        const direct = transport.ws_url || transport.wsUrl || transport.url;
-        if (direct) {
-            const withParams = appendStreamParams(String(direct), { token: token, session_id: sessionId });
-            return normalizeWsUrl(withParams);
-        }
-        const endpoint = transport.endpoint ? String(transport.endpoint) : '';
-        if (!endpoint) {
-            return '';
-        }
-        let url = endpoint;
-        const hasWsScheme = /^wss?:\/\//i.test(endpoint);
-        if (!hasWsScheme) {
-            const base = transport.base_url || transport.base || '';
-            if (base) {
-                const wsBase = String(base)
-                    .replace(/^http:/i, 'ws:')
-                    .replace(/^https:/i, 'wss:')
-                    .replace(/\/$/, '');
-                url = wsBase + '/' + endpoint.replace(/^\//, '');
-            } else if (endpoint.startsWith('/')) {
-                const wsScheme = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                url = wsScheme + '//' + window.location.host + endpoint;
-            }
-        }
-        if (!url) {
-            return '';
-        }
-        const withParams = appendStreamParams(url, { token: token, session_id: sessionId });
-        return normalizeWsUrl(withParams);
-    }
-
-    function handleStreamMessage(event) {
-        if (!event) {
-            return;
-        }
-        const raw = event.data;
-        if (typeof raw === 'string') {
-            const payload = parseJsonSafe(raw);
-            if (payload) {
-                handleStreamPayload(payload);
-            }
-            return;
-        }
-        if (raw && typeof raw === 'object' && typeof raw.text === 'function') {
-            raw.text().then((text) => {
-                const payload = parseJsonSafe(text);
-                if (payload) {
-                    handleStreamPayload(payload);
+            settingsForm.addEventListener('change', function(event){
+                if(applyingTheme || !themeSelect){ return; }
+                var target = event.target;
+                if(!target || !target.name || target.id === 'chatbot_theme_preset'){ return; }
+                if(target.name.indexOf('chatbot_') === 0 && themeSelect.value !== 'custom'){
+                    themeSelect.value = 'custom';
+                    syncThemeVisibility();
                 }
-            }).catch(() => {});
-            return;
-        }
-        if (raw instanceof ArrayBuffer) {
-            try {
-                const text = new TextDecoder().decode(raw);
-                const payload = parseJsonSafe(text);
-                if (payload) {
-                    handleStreamPayload(payload);
-                }
-            } catch (error) {
-                // ignore parse errors
-            }
-        }
-    }
-
-    function scheduleStreamReconnect() {
-        if (streamReconnectTimer || !streamInfo) {
-            return;
-        }
-        streamReconnectTimer = setTimeout(() => {
-            streamReconnectTimer = null;
-            if (!handoffActive || !streamInfo) {
-                return;
-            }
-            if (streamSocket && streamSocket.readyState === WebSocket.OPEN) {
-                return;
-            }
-            openStreamSocket(streamInfo.url, streamInfo.sessionId);
-        }, 2500);
-    }
-
-    function handleStreamClose() {
-        debugLog('Handoff stream closed');
-        clearHandoffAckWaiters('STREAM_CLOSED');
-        if (!handoffActive) {
-            return;
-        }
-        syncHandoffStatus();
-        scheduleStreamReconnect();
-    }
-
-    function handleStreamError(event) {
-        debugLog('Handoff stream error', event);
-    }
-
-    function waitForStreamReady(timeoutMs) {
-        if (canUseHandoffWs()) {
-            return Promise.resolve(true);
-        }
-        if (!streamInfo) {
-            return Promise.resolve(false);
-        }
-        if (!streamSocket || streamSocket.readyState === WebSocket.CLOSED) {
-            openStreamSocket(streamInfo.url, streamInfo.sessionId);
-        }
-        if (!streamSocket) {
-            return Promise.resolve(false);
-        }
-        if (streamSocket.readyState === WebSocket.OPEN) {
-            return Promise.resolve(true);
-        }
-        if (streamSocket.readyState !== WebSocket.CONNECTING) {
-            return Promise.resolve(false);
-        }
-        return new Promise((resolve) => {
-            let settled = false;
-            const timer = setTimeout(() => {
-                if (settled) {
-                    return;
-                }
-                settled = true;
-                cleanup();
-                resolve(false);
-            }, timeoutMs);
-            const handleOpen = () => {
-                if (settled) {
-                    return;
-                }
-                settled = true;
-                cleanup();
-                resolve(true);
-            };
-            const handleClose = () => {
-                if (settled) {
-                    return;
-                }
-                settled = true;
-                cleanup();
-                resolve(false);
-            };
-            const cleanup = () => {
-                clearTimeout(timer);
-                if (!streamSocket) {
-                    return;
-                }
-                streamSocket.removeEventListener('open', handleOpen);
-                streamSocket.removeEventListener('close', handleClose);
-            };
-            streamSocket.addEventListener('open', handleOpen);
-            streamSocket.addEventListener('close', handleClose);
-        });
-    }
-
-    function openStreamSocket(url, sessionId) {
-        if (!url) {
-            return;
-        }
-        stopStream(false);
-        streamInfo = { url: url, sessionId: sessionId };
-        try {
-            streamSocket = new WebSocket(url);
-        } catch (error) {
-            streamSocket = null;
-            return;
-        }
-        debugLog('Handoff stream start', { sessionId: sessionId, url: url });
-        streamSocket.addEventListener('open', () => {
-            debugLog('Handoff stream open');
-        });
-        streamSocket.addEventListener('message', handleStreamMessage);
-        streamSocket.addEventListener('close', handleStreamClose);
-        streamSocket.addEventListener('error', handleStreamError);
-    }
-
-    function startHandoffStream(transport) {
-        if (!transport || typeof transport !== 'object') {
-            return;
-        }
-        if (!handoffEnabled || !handoffActive) {
-            return;
-        }
-        const mode = (transport.mode || '').toString().toLowerCase();
-        if (mode !== 'ws') {
-            return;
-        }
-        const token = transport.token ? String(transport.token) : '';
-        const transportSessionId = transport.session_id ? String(transport.session_id) : '';
-        if (transportSessionId) {
-            setHandoffSessionId(transportSessionId);
-        }
-        const sessionId = transportSessionId || getHandoffSessionId();
-        if (!token || !sessionId) {
-            return;
-        }
-        const url = resolveStreamUrl(transport, token, sessionId);
-        if (!url) {
-            stopStream(true);
-            return;
-        }
-        if (streamInfo && streamInfo.url === url && streamSocket) {
-            if (streamSocket.readyState === WebSocket.OPEN || streamSocket.readyState === WebSocket.CONNECTING) {
-                return;
-            }
-        }
-        openStreamSocket(url, sessionId);
-    }
-
-    function syncTransportFromResponse(data) {
-        if (!data || typeof data !== 'object') {
-            return;
-        }
-        if (!handoffEnabled || !handoffActive) {
-            return;
-        }
-        const transport = data.transport;
-        if (!transport || typeof transport !== 'object') {
-            return;
-        }
-        debugLog('Transport update', transport);
-        startHandoffStream(transport);
-    }
-
-    function syncHandoffStateFromResponse(data) {
-        if (!handoffEnabled || !data || typeof data !== 'object') {
-            return;
-        }
-        const infoSessionId = (() => {
-            const info = data.handoff;
-            const candidates = [];
-            if (info && typeof info === 'object') {
-                candidates.push(info.session_id, info.sessionId);
-            }
-            candidates.push(data.session_id, data.sessionId);
-            if (data.transport && typeof data.transport === 'object') {
-                candidates.push(data.transport.session_id, data.transport.sessionId);
-            }
-            for (const candidate of candidates) {
-                const normalized = normalizeSessionId(candidate);
-                if (normalized) {
-                    return normalized;
-                }
-            }
-            return '';
-        })();
-        if (infoSessionId) {
-            setHandoffSessionId(infoSessionId);
-        }
-        const info = data.handoff;
-        if (!info || typeof info !== 'object') {
-            return;
-        }
-        if (info.off || info.active === false) {
-            if (handoffInFlight) {
-                return;
-            }
-            if (handoffActive) {
-                addHandoffNotice('Sesi chat dengan Admin telah berakhir.');
-            }
-            setHandoffActive(false, { bound: false });
-            return;
-        }
-        if (info.timeout) {
-            const wasActive = handoffActive;
-            const sessionToClose = getHandoffSessionId();
-            if (handoffActive) {
-                addHandoffNotice('Sesi handoff berakhir karena timeout.');
-            }
-            setHandoffActive(false, { bound: false });
-            if (wasActive) {
-                sendHandoffOff(sessionToClose);
-            }
-        } else if (info.bound || info.active === true) {
-            const expiresAt = typeof info.expires_at === 'number' ? info.expires_at : 0;
-            const nextBound = typeof info.bound === 'boolean' ? info.bound : handoffBound;
-            setHandoffActive(true, { bound: nextBound, expiresAt: expiresAt });
-            refreshHandoffExpiry();
-            if (info.bound) {
-                processHandoffQueue();
-            }
-        }
-    }
-
-    function parseRgb(value) {
-        if (!value) {
-            return null;
-        }
-        const match = value.match(/rgba?\(\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)(?:\s*,\s*([0-9.]+))?\s*\)/i);
-        if (!match) {
-            return null;
-        }
-        return {
-            r: parseInt(match[1], 10),
-            g: parseInt(match[2], 10),
-            b: parseInt(match[3], 10),
-            a: match[4] !== undefined ? parseFloat(match[4]) : 1
-        };
-    }
-
-    function relativeLuminance(rgb) {
-        if (!rgb) {
-            return 0;
-        }
-        const toLinear = (channel) => {
-            const c = channel / 255;
-            return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-        };
-        const r = toLinear(rgb.r);
-        const g = toLinear(rgb.g);
-        const b = toLinear(rgb.b);
-        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    }
-
-    function contrastRatio(l1, l2) {
-        const light = Math.max(l1, l2);
-        const dark = Math.min(l1, l2);
-        return (light + 0.05) / (dark + 0.05);
-    }
-
-    function ensureInputContrast() {
-        if (!input) {
-            return;
-        }
-        const styles = getComputedStyle(input);
-        const fg = parseRgb(styles.color);
-        let bg = parseRgb(styles.backgroundColor);
-        if (!bg || bg.a < 0.15) {
-            const area = input.closest('.chatbot-input-area');
-            if (area) {
-                const areaBg = parseRgb(getComputedStyle(area).backgroundColor);
-                if (areaBg && areaBg.a >= 0.15) {
-                    bg = areaBg;
-                }
-            }
-        }
-        if (!bg || bg.a < 0.15) {
-            const frameBg = chatFrame ? parseRgb(getComputedStyle(chatFrame).backgroundColor) : null;
-            if (frameBg && frameBg.a >= 0.15) {
-                bg = frameBg;
-            }
-        }
-        if (!fg || !bg) {
-            return;
-        }
-        const ratio = contrastRatio(relativeLuminance(fg), relativeLuminance(bg));
-        if (ratio >= 4.5) {
-            input.style.removeProperty('color');
-            input.style.removeProperty('caret-color');
-            return;
-        }
-        const fallback = relativeLuminance(bg) > 0.5 ? 'rgb(15, 23, 42)' : 'rgb(226, 232, 240)';
-        input.style.setProperty('color', fallback, 'important');
-        input.style.setProperty('caret-color', fallback, 'important');
-    }
-
-    function isNearBottom() {
-        if (!messagesContainer) {
-            return true;
-        }
-        const gap = messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight;
-        return gap < 120;
-    }
-
-    function updateScrollButton() {
-        if (!scrollButton) {
-            return;
-        }
-        scrollButton.classList.toggle('is-visible', !isNearBottom());
-    }
-
-    function scrollToBottom(behavior = 'smooth') {
-        if (!messagesContainer) {
-            return;
-        }
-        messagesContainer.scrollTo({
-            top: messagesContainer.scrollHeight,
-            behavior: behavior
-        });
-        updateScrollButton();
-    }
-
-    function enqueueHandoffMessage(text) {
-        if (!text) {
-            return;
-        }
-        const messageEl = addMessage('user', text, false, { statusText: 'Mengirim…', statusState: 'sending' });
-        history.push({ sender: 'user', text: text });
-        saveHistory();
-        handoffQueue.push({
-            id: handoffQueueSeq + 1,
-            text: text,
-            element: messageEl,
-            attempts: 0
-        });
-        handoffQueueSeq += 1;
-        processHandoffQueue();
-    }
-
-    async function processHandoffQueue() {
-        if (handoffQueueActive) {
-            return;
-        }
-        if (!handoffEnabled || !handoffActive || !handoffBound) {
-            handoffQueue = [];
-            return;
-        }
-        handoffQueueActive = true;
-        while (handoffQueue.length > 0 && handoffEnabled && handoffActive && handoffBound) {
-            const item = handoffQueue.shift();
-            if (!item || typeof item.text !== 'string' || item.text.trim() === '') {
-                continue;
-            }
-            await sendHandoffQueuedMessage(item);
-        }
-        handoffQueueActive = false;
-    }
-
-    async function sendHandoffQueuedMessage(item) {
-        if (!handoffEnabled || !handoffActive || !handoffBound || !chatConfig.proxy_url) {
-            return;
-        }
-        const handoffSession = getHandoffSessionId();
-        if (!handoffSession) {
-            setMessageStatus(item.element, 'failed', 'Gagal');
-            addMessage('bot', 'Error: Session ID tidak tersedia. Silakan coba lagi.');
-            return;
-        }
-        const maxAttempts = 2;
-        const queueTimeoutMs = Math.max(15000, proxyTimeoutMs + 2000);
-        while (item.attempts < maxAttempts) {
-            if (isRateLimited()) {
-                const waitMs = getRateLimitRemaining();
-                setMessageStatus(item.element, 'sending', 'Menunggu rate limit...');
-                await new Promise((resolve) => setTimeout(resolve, waitMs));
-                continue;
-            }
-            item.attempts += 1;
-            const statusLabel = item.attempts > 1 ? 'Mengirim ulang…' : 'Mengirim…';
-            setMessageStatus(item.element, 'sending', statusLabel);
-            try {
-                const streamReadyTimeoutMs = Math.min(5000, Math.max(1500, Math.floor(queueTimeoutMs * 0.4)));
-                const streamReady = streamInfo ? await waitForStreamReady(streamReadyTimeoutMs) : false;
-                if (streamReady && canUseHandoffWs()) {
-                    const wsResult = await sendHandoffWsMessage(item.text, queueTimeoutMs);
-                    const wsTimeout = wsResult && wsResult.timeout;
-                    const wsData = wsResult && wsResult.data && typeof wsResult.data === 'object' ? wsResult.data : null;
-                    if (wsData) {
-                        syncHandoffStateFromResponse(wsData);
-                        syncTransportFromResponse(wsData);
-                    }
-                    if (wsResult && wsResult.ok) {
-                        const botResponse = wsData ? extractBotMessage(wsData) : '';
-                        const finalText = (typeof botResponse === 'string' ? botResponse : '').trim();
-                        const handoffInfo = wsData && typeof wsData === 'object' ? wsData.handoff : null;
-                        const isForwarded = handoffInfo && handoffInfo.forwarded;
-
-                        if (handoffInfo && handoffInfo.from_admin) {
-                            handoffBound = true;
-                            updateHandoffUI();
-                        }
-
-                        setMessageStatus(item.element, 'sent', 'Terkirim');
-
-                        if (!isForwarded && wsData) {
-                            const safeText = finalText !== '' ? finalText : 'Maaf, saya tidak dapat memproses permintaan tersebut.';
-                            const inboundId = handoffInfo && handoffInfo.message_id ? handoffInfo.message_id : null;
-                            const isDup = handoffInfo && handoffInfo.from_admin ? isDuplicateInbound(safeText, inboundId) : false;
-                            if (!isDup) {
-                                addMessage('bot', safeText);
-                                history.push({ sender: 'bot', text: safeText });
-                                saveHistory();
-                                if (handoffInfo && handoffInfo.from_admin) {
-                                    trackInboundMessage(safeText, inboundId);
-                                }
-                            }
-                        }
-                        return;
-                    }
-
-                    if (isRateLimitResponse(null, wsData)) {
-                        markRateLimited(null, wsData);
-                        if (item.attempts < maxAttempts) {
-                            await new Promise((resolve) => setTimeout(resolve, getRateLimitRemaining()));
-                            continue;
-                        }
-                        setMessageStatus(item.element, 'failed', 'Gagal');
-                        addMessage('bot', getRateLimitMessage());
-                        return;
-                    }
-
-                    const wsStatus = wsResult && wsResult.status ? Number(wsResult.status) : 0;
-                    const wsErrorMessage = wsTimeout
-                        ? 'Koneksi timeout. Silakan coba lagi.'
-                        : (wsData && wsData.error ? wsData.error : (wsResult && wsResult.error ? wsResult.error : 'Terjadi kesalahan saat menghubungi server.'));
-                    if ((wsTimeout || wsStatus >= 500 || (wsResult && wsResult.error === 'REQUEST_FAILED')) && item.attempts < maxAttempts) {
-                        await new Promise((resolve) => setTimeout(resolve, 500 * item.attempts));
-                        continue;
-                    }
-                    setMessageStatus(item.element, 'failed', 'Gagal');
-                    addMessage('bot', 'Error: ' + wsErrorMessage);
-                    return;
-                }
-
-                if (streamInfo && !streamReady) {
-                    scheduleStreamReconnect();
-                }
-
-                const requestId = uuidv4();
-                const requestPayload = {
-                    route: 'handoff',
-                    handoff: true,
-                    handoff_timeout_sec: handoffTimeout,
-                    handoff_reason: handoffReason,
-                    chatInput: item.text,
-                    text: item.text
-                };
-
-                requestPayload.session_id = handoffSession;
-
-                const requestMeta = {
-                    visitorId: visitorId,
-                    ownerId: metaOwnerOverride || visitorId,
-                    scope: metaScopeOverride || 'web',
-                    entityId: metaEntityOverride || (window.location.hostname || ''),
-                    requestId: requestId,
-                    pageUrl: window.location.href
-                };
-
-                requestMeta.sessionId = handoffSession;
-
-                const payload = {
-                    proxy_id: chatConfig.proxy_id,
-                    config_key: chatConfig.config_key,
-                    payload: requestPayload,
-                    meta: requestMeta
-                };
-
-                let timeoutId = null;
-                const timeoutPromise = new Promise((resolve) => {
-                    timeoutId = setTimeout(() => resolve({ timeout: true }), queueTimeoutMs);
-                });
-                const requestPromise = postProxy(payload)
-                    .then((result) => {
-                        if (result && result.response && result.response.ok && result.data) {
-                            syncHandoffStateFromResponse(result.data);
-                            syncTransportFromResponse(result.data);
-                        }
-                        return result;
-                    })
-                    .catch((error) => ({ response: null, data: null, error: error }));
-
-                const result = await Promise.race([requestPromise, timeoutPromise]);
-                if (timeoutId) {
-                    clearTimeout(timeoutId);
-                }
-                const response = result ? result.response : null;
-                const data = result ? result.data : null;
-                const isTimeout = result && result.timeout;
-                if (isRateLimitResponse(response, data)) {
-                    markRateLimited(response, data);
-                    if (item.attempts < maxAttempts) {
-                        await new Promise((resolve) => setTimeout(resolve, getRateLimitRemaining()));
-                        continue;
-                    }
-                    setMessageStatus(item.element, 'failed', 'Gagal');
-                    addMessage('bot', getRateLimitMessage());
-                    return;
-                }
-                if (!response || !response.ok || !data || isTimeout) {
-                    const errorMessage = isTimeout
-                        ? 'Koneksi timeout. Silakan coba lagi.'
-                        : (data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.');
-                    if ((!response || isTimeout || response.status >= 500) && item.attempts < maxAttempts) {
-                        await new Promise((resolve) => setTimeout(resolve, 500 * item.attempts));
-                        continue;
-                    }
-                    setMessageStatus(item.element, 'failed', 'Gagal');
-                    addMessage('bot', 'Error: ' + errorMessage);
-                    return;
-                }
-
-                const botResponse = extractBotMessage(data);
-                const finalText = (typeof botResponse === 'string' ? botResponse : '').trim();
-                const handoffInfo = data && typeof data === 'object' ? data.handoff : null;
-                const isForwarded = handoffInfo && handoffInfo.forwarded;
-
-                if (handoffInfo && handoffInfo.from_admin) {
-                    handoffBound = true;
-                    updateHandoffUI();
-                }
-
-                setMessageStatus(item.element, 'sent', 'Terkirim');
-
-                if (!isForwarded) {
-                    const safeText = finalText !== '' ? finalText : 'Maaf, saya tidak dapat memproses permintaan tersebut.';
-                    const inboundId = handoffInfo && handoffInfo.message_id ? handoffInfo.message_id : null;
-                    const isDup = handoffInfo && handoffInfo.from_admin ? isDuplicateInbound(safeText, inboundId) : false;
-                    if (!isDup) {
-                        addMessage('bot', safeText);
-                        history.push({ sender: 'bot', text: safeText });
-                        saveHistory();
-                        if (handoffInfo && handoffInfo.from_admin) {
-                            trackInboundMessage(safeText, inboundId);
-                        }
-                    }
-                }
-                return;
-            } catch (error) {
-                if (item.attempts < maxAttempts) {
-                    await new Promise((resolve) => setTimeout(resolve, 500 * item.attempts));
-                    continue;
-                }
-                setMessageStatus(item.element, 'failed', 'Gagal');
-                return;
-            }
-        }
-    }
-
-    function openImageViewer(src) {
-        if (!imageViewer || !imageViewerImg || !src) {
-            return;
-        }
-        imageViewerImg.src = src;
-        imageViewer.classList.add('is-open');
-        imageViewer.setAttribute('aria-hidden', 'false');
-        document.body.classList.add('ai-chatbot-image-open');
-    }
-
-    function closeImageViewer() {
-        if (!imageViewer) {
-            return;
-        }
-        imageViewer.classList.remove('is-open');
-        imageViewer.setAttribute('aria-hidden', 'true');
-        if (imageViewerImg) {
-            imageViewerImg.src = '';
-        }
-        document.body.classList.remove('ai-chatbot-image-open');
-    }
-
-    async function checkStatus() {
-        if (!statusEl || statusCheckInFlight) {
-            return;
-        }
-
-        const now = Date.now();
-        if (statusThrottleMs > 0 && now - lastStatusCheckedAt < statusThrottleMs) {
-            return;
-        }
-
-        statusCheckInFlight = true;
-        lastStatusCheckedAt = now;
-        setStatus('checking', 'Checking...');
-
-        try {
-            const response = await fetch(statusUrl, {
-                method: 'GET',
-                credentials: 'same-origin',
-                cache: 'no-store'
-            });
-            const data = await response.json();
-            if (data && (data.status === 'online' || data.status === 'offline')) {
-                const label = data.status === 'online' ? 'Online' : 'Offline';
-                setStatus(data.status, label);
-            } else {
-                setStatus('offline', 'Offline');
-            }
-        } catch (error) {
-            setStatus('offline', 'Offline');
-        } finally {
-            statusCheckInFlight = false;
-        }
-    }
-
-    function uuidv4() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            const r = Math.random() * 16 | 0;
-            const v = c === 'x' ? r : ((r & 0x3) | 0x8);
-            return v.toString(16);
-        });
-    }
-
-    function getVisitorId() {
-        try {
-            let visitorId = localStorage.getItem(visitorIdKey);
-            if (!visitorId) {
-                visitorId = uuidv4();
-                localStorage.setItem(visitorIdKey, visitorId);
-            }
-            return visitorId;
-        } catch (error) {
-            return uuidv4();
-        }
-    }
-
-    function getSessionId() {
-        const fallback = () => {
-            if (!window.__aiChatbotEphemeralSessionId) {
-                window.__aiChatbotEphemeralSessionId = uuidv4();
-            }
-            return window.__aiChatbotEphemeralSessionId;
-        };
-
-        try {
-            const storage = window.sessionStorage;
-            if (!storage) {
-                throw new Error('sessionStorage unavailable');
-            }
-            let sessionId = storage.getItem(sessionIdKey);
-            if (!sessionId) {
-                sessionId = uuidv4();
-                storage.setItem(sessionIdKey, sessionId);
-            }
-            return sessionId;
-        } catch (error) {
-            return fallback();
-        }
-    }
-
-    const visitorId = getVisitorId();
-    const sessionIdRaw = getSessionId();
-    const sessionFingerprint = (sessionIdRaw || '').replace(/[^a-f0-9]/gi, '').toLowerCase();
-    const sessionToken = sessionFingerprint !== '' ? sessionFingerprint : null;
-    const baseHistoryKey = 'ai_chatbot_history_' + visitorId;
-    const historyKey = sessionFingerprint ? baseHistoryKey + '_' + sessionFingerprint : baseHistoryKey;
-    handoffStorageKey = sessionFingerprint
-        ? 'ai_chatbot_handoff_' + sessionFingerprint
-        : 'ai_chatbot_handoff_' + visitorId;
-    unreadStorageKey = sessionFingerprint
-        ? 'ai_chatbot_unread_' + sessionFingerprint
-        : 'ai_chatbot_unread_' + visitorId;
-    try {
-        const storedUnread = parseInt(localStorage.getItem(unreadStorageKey) || '0', 10);
-        if (!isNaN(storedUnread) && storedUnread > 0) {
-            unreadCount = storedUnread;
-        }
-    } catch (error) {
-        // ignore storage errors
-    }
-    updateUnreadBadge();
-
-    function normalizeSessionId(value) {
-        if (typeof value !== 'string') {
-            return '';
-        }
-        return value.trim();
-    }
-
-    function getHandoffSessionId() {
-        return handoffSessionId || sessionToken || '';
-    }
-
-    function setHandoffSessionId(value, persist = true) {
-        const next = normalizeSessionId(value);
-        if (next === '') {
-            handoffSessionId = null;
-            if (persist) {
-                persistHandoffState();
-            }
-            return;
-        }
-        if (handoffSessionId === next) {
-            if (persist) {
-                persistHandoffState();
-            }
-            return;
-        }
-        handoffSessionId = next;
-        if (persist) {
-            persistHandoffState();
-        }
-    }
-
-    try {
-        const legacyKeys = [
-            'ai_chatbot_history',
-            'ai_chatbot_history_' + visitorId
-        ];
-        if (!localStorage.getItem(historyKey)) {
-            for (const legacyKey of legacyKeys) {
-                const legacyValue = localStorage.getItem(legacyKey);
-                if (legacyValue) {
-                    localStorage.setItem(historyKey, legacyValue);
-                    break;
-                }
-            }
-        }
-    } catch (error) {
-        // ignore storage migration errors
-    }
-
-    function loadHistory() {
-        let saved;
-        try {
-            saved = localStorage.getItem(historyKey);
-        } catch (e) {
-            return;
-        }
-        if (!saved) {
-            return;
-        }
-        try {
-            const data = JSON.parse(saved);
-            const storedSessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
-            if (sessionFingerprint && storedSessionId && storedSessionId !== sessionFingerprint) {
-                localStorage.removeItem(historyKey);
-                return;
-            }
-
-            const storedVisitorId = typeof data.visitorId === 'string' ? data.visitorId : '';
-            if (storedVisitorId && storedVisitorId !== visitorId) {
-                localStorage.removeItem(historyKey);
-                return;
-            }
-            if (settings.history_mode === 'ttl' && data.timestamp && Date.now() - data.timestamp > settings.history_ttl) {
-                localStorage.removeItem(historyKey);
-                return;
-            }
-            history = Array.isArray(data.messages) ? data.messages : [];
-            history.forEach((msg) => addMessage(msg.sender, msg.text, false, { skipUnread: true }));
-        } catch (error) {
-            localStorage.removeItem(historyKey);
-        }
-    }
-
-    function saveHistory() {
-        try {
-            if (settings.history_mode === 'count' && history.length > settings.history_max_messages) {
-                history = history.slice(history.length - settings.history_max_messages);
-            }
-            const payload = {
-                timestamp: Date.now(),
-                messages: history
-            };
-
-            if (visitorId) {
-                payload.visitorId = visitorId;
-            }
-
-            if (sessionToken) {
-                payload.sessionId = sessionToken;
-            }
-
-            localStorage.setItem(historyKey, JSON.stringify(payload));
-        } catch (error) {
-            // ignore storage write errors
-        }
-    }
-
-    function attachCopyButton(messageDiv) {
-        if (!messageDiv || !messageDiv.classList.contains('bot')) {
-            return;
-        }
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'chatbot-copy-btn';
-        button.setAttribute('aria-label', 'Copy message');
-        button.setAttribute('title', 'Copy');
-        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
-        messageDiv.appendChild(button);
-    }
-
-    function addMessage(sender, text, isTyping = false, options = {}) {
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('chatbot-message', sender);
-        if (isTyping) {
-            messageDiv.classList.add('typing');
-        }
-
-        const contentDiv = document.createElement('div');
-        contentDiv.classList.add('chatbot-message-content');
-
-        if (isTyping) {
-            contentDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
-        } else {
-            const messageText = text || '';
-            if (messageFormat === 'markdown') {
-                contentDiv.innerHTML = renderMarkdown(messageText, renderInline);
-            } else if (messageFormat === 'markdown_v2') {
-                contentDiv.innerHTML = renderMarkdown(messageText, renderInlineV2);
-            } else {
-                contentDiv.textContent = messageText;
-            }
-        }
-
-        if (!isTyping && options && typeof options === 'object' && options.statusText) {
-            const statusEl = document.createElement('span');
-            statusEl.className = 'chatbot-message-status';
-            statusEl.textContent = options.statusText;
-            if (options.statusState) {
-                statusEl.dataset.status = options.statusState;
-            }
-            contentDiv.appendChild(statusEl);
-        }
-
-        messageDiv.appendChild(contentDiv);
-        if (!isTyping) {
-            attachCopyButton(messageDiv);
-        }
-        messagesContainer.appendChild(messageDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        updateScrollButton();
-        updateAutoHeight();
-        if (!isTyping && sender === 'bot' && !chatFrame.classList.contains('is-open') && !(options && options.skipUnread)) {
-            incrementUnreadCount();
-        }
-        return messageDiv;
-    }
-
-    function addHandoffNotice(text) {
-        const message = (text || '').trim();
-        if (message === '') {
-            return;
-        }
-        const now = Date.now();
-        if (lastHandoffNotice && lastHandoffNotice.text === message && now - lastHandoffNotice.at < 2500) {
-            return;
-        }
-        lastHandoffNotice = { text: message, at: now };
-        addMessage('bot', message);
-        history.push({ sender: 'bot', text: message });
-        saveHistory();
-    }
-
-    function restoreHandoffState() {
-        if (!handoffEnabled || !handoffStorageKey) {
-            return;
-        }
-        try {
-            const raw = localStorage.getItem(handoffStorageKey);
-            if (!raw) {
-                return;
-            }
-            if (raw === '1') {
-                setHandoffActive(true, { bound: false });
-                return;
-            }
-            let parsed = null;
-            try {
-                parsed = JSON.parse(raw);
-            } catch (error) {
-                parsed = null;
-            }
-            const expiresAt = parsed && typeof parsed.expires_at === 'number' ? parsed.expires_at : 0;
-            if (expiresAt > 0 && expiresAt > Date.now()) {
-                const storedSessionId = parsed && typeof parsed.session_id === 'string'
-                    ? parsed.session_id
-                    : (parsed && typeof parsed.sessionId === 'string' ? parsed.sessionId : '');
-                if (storedSessionId) {
-                    setHandoffSessionId(storedSessionId, false);
-                }
-                setHandoffActive(true, { bound: false, expiresAt: expiresAt });
-                scheduleHandoffExpiryCheck();
-            } else {
-                clearHandoffStorage();
-                setHandoffSessionId(null, false);
-            }
-        } catch (error) {
-            // ignore storage errors
-        }
-    }
-
-    function escapeHtml(value) {
-        return String(value || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    function renderInline(raw) {
-        const linkTokens = [];
-        let text = String(raw || '');
-
-        text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function (match, label, url) {
-            const token = '@@LINKTOKEN' + linkTokens.length + '@@';
-            linkTokens.push({ label: label, url: url });
-            return token;
-        });
-
-        text = escapeHtml(text);
-        text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
-        text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
-        text = text.replace(/_(.+?)_/g, '<em>$1</em>');
-        text = text.replace(/~~(.+?)~~/g, '<del>$1</del>');
-        text = text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-
-        if (linkTokens.length) {
-            text = text.replace(/@@LINKTOKEN(\d+)@@/g, function (match, index) {
-                const token = linkTokens[parseInt(index, 10)];
-                if (!token) {
-                    return match;
-                }
-                return '<a href="' + token.url + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(token.label) + '</a>';
             });
         }
-
-        return text;
+        syncThemeVisibility();
     }
-
-    function renderInlineV2(raw) {
-        const linkTokens = [];
-        let text = String(raw || '');
-
-        text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function (match, label, url) {
-            const token = '@@LINKTOKEN' + linkTokens.length + '@@';
-            linkTokens.push({ label: label, url: url });
-            return token;
-        });
-
-        text = escapeHtml(text);
-        text = text.replace(/__([^_]+?)__/g, '<u>$1</u>');
-        text = text.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
-        text = text.replace(/\*([^*]+?)\*/g, '<strong>$1</strong>');
-        text = text.replace(/_([^_]+?)_/g, '<em>$1</em>');
-        text = text.replace(/~~([^~]+?)~~/g, '<del>$1</del>');
-        text = text.replace(/~([^~]+?)~/g, '<del>$1</del>');
-        text = text.replace(/\|\|([\s\S]+?)\|\|/g, '<span class="chatbot-spoiler">$1</span>');
-        text = text.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-
-        if (linkTokens.length) {
-            text = text.replace(/@@LINKTOKEN(\d+)@@/g, function (match, index) {
-                const token = linkTokens[parseInt(index, 10)];
-                if (!token) {
-                    return match;
-                }
-                return '<a href="' + token.url + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(token.label) + '</a>';
-            });
-        }
-
-        return text;
-    }
-
-    function renderMarkdown(raw, inlineRenderer) {
-        if (typeof inlineRenderer !== 'function') {
-            inlineRenderer = renderInline;
-        }
-        const source = String(raw || '').replace(/\r\n/g, '\n');
-        const codeBlocks = [];
-        const inlineCodes = [];
-        let text = source;
-
-        text = text.replace(/```([\s\S]*?)```/g, function (match, code) {
-            const token = '@@CODEBLOCK' + codeBlocks.length + '@@';
-            codeBlocks.push(code);
-            return token;
-        });
-
-        text = text.replace(/`([^`]+)`/g, function (match, code) {
-            const token = '@@INLINECODE' + inlineCodes.length + '@@';
-            inlineCodes.push(code);
-            return token;
-        });
-
-        const lines = text.split('\n');
-        let html = '';
-        let inUl = false;
-        let inOl = false;
-        let inBlockquote = false;
-
-        function closeLists() {
-            if (inUl) {
-                html += '</ul>';
-                inUl = false;
-            }
-            if (inOl) {
-                html += '</ol>';
-                inOl = false;
-            }
-        }
-
-        function closeBlockquote() {
-            if (inBlockquote) {
-                html += '</blockquote>';
-                inBlockquote = false;
-            }
-        }
-
-        lines.forEach(function (line) {
-            const trimmed = line.trim();
-            if (trimmed === '') {
-                closeLists();
-                closeBlockquote();
-                html += '<br>';
-                return;
-            }
-
-            const headingMatch = line.match(/^\s*#+\s+(.*)$/);
-            if (headingMatch) {
-                closeLists();
-                closeBlockquote();
-                const hashMatch = line.match(/^\s*#+/);
-                const level = hashMatch ? hashMatch[0].trim().length : 1;
-                const content = headingMatch[1] || '';
-                html += '<h' + level + '>' + inlineRenderer(content) + '</h' + level + '>';
-                return;
-            }
-
-            if (/^\s*([-*_])\1\1+\s*$/.test(line)) {
-                closeLists();
-                closeBlockquote();
-                html += '<hr>';
-                return;
-            }
-
-            if (/^\s*>\s?/.test(line)) {
-                closeLists();
-                if (!inBlockquote) {
-                    html += '<blockquote>';
-                    inBlockquote = true;
-                }
-                const content = line.replace(/^\s*>\s?/, '');
-                html += '<p>' + inlineRenderer(content) + '</p>';
-                return;
-            }
-
-            if (/^\s*\d+\.\s+/.test(line)) {
-                if (!inOl) {
-                    closeLists();
-                    closeBlockquote();
-                    html += '<ol>';
-                    inOl = true;
-                }
-                const content = line.replace(/^\s*\d+\.\s+/, '');
-                html += '<li>' + inlineRenderer(content) + '</li>';
-                return;
-            }
-
-            if (/^\s*[-*]\s+/.test(line)) {
-                if (!inUl) {
-                    closeLists();
-                    closeBlockquote();
-                    html += '<ul>';
-                    inUl = true;
-                }
-                const content = line.replace(/^\s*[-*]\s+/, '');
-                html += '<li>' + inlineRenderer(content) + '</li>';
-                return;
-            }
-
-            closeLists();
-            closeBlockquote();
-            html += '<p>' + inlineRenderer(line) + '</p>';
-        });
-
-        closeLists();
-        closeBlockquote();
-
-        html = html.replace(/@@INLINECODE(\d+)@@/g, function (match, index) {
-            const code = inlineCodes[parseInt(index, 10)];
-            return '<code>' + escapeHtml(code || '') + '</code>';
-        });
-
-        html = html.replace(/@@CODEBLOCK(\d+)@@/g, function (match, index) {
-            const code = codeBlocks[parseInt(index, 10)];
-            return '<pre><code>' + escapeHtml(code || '') + '</code></pre>';
-        });
-
-        return html;
-    }
-
-    function getMessagePlainText(messageEl) {
-        if (!messageEl) {
-            return '';
-        }
-        const content = messageEl.querySelector('.chatbot-message-content');
-        if (!content) {
-            return '';
-        }
-        const clone = content.cloneNode(true);
-        clone.querySelectorAll('.chatbot-copy-btn').forEach((btn) => btn.remove());
-        const text = clone.innerText || clone.textContent || '';
-        return text.replace(/\n\n\n+/g, '\n\n').trim();
-    }
-
-    function copyToClipboard(text) {
-        if (!text) {
-            return Promise.resolve();
-        }
-        if (navigator.clipboard && window.isSecureContext) {
-            return navigator.clipboard.writeText(text);
-        }
-        return new Promise((resolve, reject) => {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.setAttribute('readonly', '');
-            textarea.style.position = 'fixed';
-            textarea.style.left = '-9999px';
-            document.body.appendChild(textarea);
-            textarea.select();
-            try {
-                const success = document.execCommand('copy');
-                document.body.removeChild(textarea);
-                if (success) {
-                    resolve();
-                } else {
-                    reject(new Error('copy_failed'));
-                }
-            } catch (error) {
-                document.body.removeChild(textarea);
-                reject(error);
-            }
-        });
-    }
-
-    function updateAutoHeight() {
-        if (frameMode !== 'auto' || !chatFrame) {
-            return;
-        }
-
-        chatFrame.style.height = 'auto';
-        const maxHeight = Math.floor(window.innerHeight * 0.8);
-        const nextHeight = Math.min(chatFrame.scrollHeight, maxHeight);
-        chatFrame.style.height = nextHeight + 'px';
-    }
-
-    function typingDelayForText(text) {
-        if (typingMode !== 'wpm') {
-            return 0;
-        }
-
-        const content = (text || '').trim();
-        if (content === '') {
-            return 0;
-        }
-
-        const msPerChar = 60000 / (typingWpm * 5);
-        const estimated = Math.round(content.length * msPerChar);
-        return Math.min(8000, Math.max(300, estimated));
-    }
-
-    function setChatOpen(open) {
-        if (open) {
-            root.classList.add('ai-chatbot-root--open');
-            chatFrame.classList.add('is-open');
-            chatFrame.setAttribute('aria-hidden', 'false');
-            chatButton.setAttribute('aria-expanded', 'true');
-            setUnreadCount(0);
-
-            checkStatus();
-            syncHandoffStatus();
-            ensureInputContrast();
-            updateScrollButton();
-
-            if (history.length === 0 && settings.welcome_enabled) {
-                const welcomeMessageText = settings.welcome_message || '';
-                if (welcomeMessageText !== '') {
-                    addMessage('bot', welcomeMessageText);
-                    history.push({ sender: 'bot', text: welcomeMessageText });
-                    saveHistory();
-                }
-            }
-
-            requestAnimationFrame(() => {
-                updateAutoHeight();
-                input.focus();
-            });
-        } else {
-            root.classList.remove('ai-chatbot-root--open');
-            chatFrame.classList.remove('is-open');
-            chatFrame.setAttribute('aria-hidden', 'true');
-            chatButton.setAttribute('aria-expanded', 'false');
-        }
-    }
-
-    function toggleChat(event) {
-        if (event) {
-            event.preventDefault();
-        }
-        const isOpen = chatFrame.classList.contains('is-open');
-        setChatOpen(!isOpen);
-    }
-
-    function closeChat(event) {
-        if (event) {
-            event.preventDefault();
-        }
-        setChatOpen(false);
-    }
-
-    function handleDocumentClick(event) {
-        if (!chatFrame.classList.contains('is-open')) {
-            return;
-        }
-        if (imageViewer && imageViewer.classList.contains('is-open')) {
-            return;
-        }
-        if (!root.contains(event.target)) {
-            setChatOpen(false);
-        }
-    }
-
-    function handleKeydown(event) {
-        if (event.key !== 'Escape') {
-            return;
-        }
-
-        if (imageViewer && imageViewer.classList.contains('is-open')) {
-            closeImageViewer();
-            return;
-        }
-
-        if (chatFrame.classList.contains('is-open')) {
-            setChatOpen(false);
-        }
-    }
-
-    function getByPath(payload, path) {
-        if (!payload || typeof payload !== 'object' || !path) {
-            return undefined;
-        }
-        const parts = path.split('.').filter(Boolean);
-        let current = payload;
-        for (const part of parts) {
-            if (current && Object.prototype.hasOwnProperty.call(current, part)) {
-                current = current[part];
-            } else {
-                return undefined;
-            }
-        }
-        return current;
-    }
-
-    function extractBotMessage(payload, skipResponseKey = false) {
-        if (payload === null || payload === undefined) {
-            return '';
-        }
-
-        if (!skipResponseKey && responseKey) {
-            const keyed = getByPath(payload, responseKey);
-            if (keyed !== undefined) {
-                const candidate = extractBotMessage(keyed, true);
-                if (candidate) {
-                    return candidate;
-                }
-            }
-        }
-
-        if (typeof payload === 'string') {
-            return payload;
-        }
-
-        if (Array.isArray(payload)) {
-            for (const item of payload) {
-                const candidate = extractBotMessage(item);
-                if (candidate) {
-                    return candidate;
-                }
-            }
-            return '';
-        }
-
-        if (typeof payload === 'object') {
-            const directKeys = ['response', 'output', 'message', 'text', 'content', 'answer'];
-            for (const key of directKeys) {
-                if (Object.prototype.hasOwnProperty.call(payload, key)) {
-                    const candidate = extractBotMessage(payload[key]);
-                    if (candidate) {
-                        return candidate;
-                    }
-                }
-            }
-
-            if (payload.choices && Array.isArray(payload.choices)) {
-                for (const choice of payload.choices) {
-                    const candidate = extractBotMessage(choice, true);
-                    if (candidate) {
-                        return candidate;
-                    }
-                }
-            }
-
-            if (payload.data !== undefined) {
-                const candidate = extractBotMessage(payload.data, true);
-                if (candidate) {
-                    return candidate;
-                }
-            }
-
-            const numericKeys = Object.keys(payload)
-                .filter((key) => /^[0-9]+$/.test(key))
-                .sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
-
-            for (const key of numericKeys) {
-                const candidate = extractBotMessage(payload[key], true);
-                if (candidate) {
-                    return candidate;
-                }
-            }
-        }
-
-        return '';
-    }
-
-    let postProxyQueue = Promise.resolve();
-
-    async function refreshCsrfToken() {
-        try {
-            const response = await fetch(bootstrapUrl, {
-                method: 'POST',
-                credentials: 'same-origin'
-            });
-            if (!response.ok) {
-                return false;
-            }
-            const data = await response.json();
-            if (!data || !data.success) {
-                return false;
-            }
-            if (data.proxy_url) {
-                chatConfig.proxy_url = data.proxy_url;
-            }
-            if (data.proxy_id) {
-                chatConfig.proxy_id = data.proxy_id;
-            }
-            if (data.config_key) {
-                chatConfig.config_key = data.config_key;
-            }
-            if (data.csrf_token) {
-                csrfToken = data.csrf_token;
-            }
-            return Boolean(csrfToken);
-        } catch (error) {
-            return false;
-        }
-    }
-
-    function fetchWithTimeout(url, options, timeoutMs) {
-        if (!timeoutMs || typeof AbortController === 'undefined') {
-            return fetch(url, options);
-        }
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-        const nextOptions = Object.assign({}, options, { signal: controller.signal });
-        return fetch(url, nextOptions).finally(() => clearTimeout(timer));
-    }
-
-    async function postProxyInternal(payload) {
-        if (isRateLimited()) {
-            return {
-                response: null,
-                data: { error: 'RATE_LIMIT', retry_after_ms: getRateLimitRemaining() },
-                rate_limited: true
-            };
-        }
-        let attempt = 0;
-        while (attempt < 2) {
-            attempt += 1;
-            if (csrfToken) {
-                payload.csrf_token = csrfToken;
-            }
-            let response = null;
-            try {
-                response = await fetchWithTimeout(chatConfig.proxy_url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify(payload)
-                }, proxyTimeoutMs);
-            } catch (error) {
-                if (error && error.name === 'AbortError') {
-                    return { response: null, data: null, timeout: true };
-                }
-                throw error;
-            }
-            let data = null;
-            try {
-                data = await response.json();
-            } catch (parseError) {
-                data = null;
-            }
-
-            if (data && typeof data === 'object' && data !== null && data.csrf_token) {
-                csrfToken = data.csrf_token;
-                delete data.csrf_token;
-            }
-            if (data && data.proxy_id) {
-                chatConfig.proxy_id = data.proxy_id;
-            }
-            if (response && response.status === 429) {
-                markRateLimited(response, data);
-                return { response: response, data: data, rate_limited: true };
-            }
-            if (response.status === 419 && attempt < 2) {
-                if (data && data.csrf_token) {
-                    continue;
-                }
-                const refreshed = await refreshCsrfToken();
-                if (refreshed) {
-                    continue;
-                }
-            }
-            return { response: response, data: data };
-        }
-        return { response: null, data: null };
-    }
-
-    function postProxy(payload) {
-        const run = postProxyQueue.then(() => postProxyInternal(payload));
-        postProxyQueue = run.catch(() => {});
-        return run;
-    }
-
-    async function sendMessage() {
-        const rawText = input.value;
-        const text = rawText.trim();
-        if (text === '' || !chatConfig.proxy_url) {
-            return;
-        }
-        if (handoffInFlight) {
-            return;
-        }
-        if (isRateLimited()) {
-            addMessage('bot', getRateLimitMessage());
-            return;
-        }
-        const cleanedText = rawText.replace(/\r\n/g, '\n').trim();
-        const isHandoffMode = handoffEnabled && handoffActive;
-        const isHandoffQueueMode = isHandoffMode && handoffBound;
-        const handoffSession = isHandoffMode ? getHandoffSessionId() : '';
-
-        input.value = '';
-        if (isHandoffQueueMode) {
-            refreshHandoffExpiry();
-            enqueueHandoffMessage(cleanedText);
-            input.focus();
-            return;
-        }
-
-        addMessage('user', cleanedText);
-        history.push({ sender: 'user', text: cleanedText });
-        saveHistory();
-        input.disabled = true;
-        sendButton.disabled = true;
-        setSendLoading(true);
-
-        const typingStartedAt = typingMode === 'wpm' ? Date.now() : 0;
-        const typingIndicator = typingMode === 'wpm' ? addMessage('bot', '', true) : null;
-        if (isHandoffMode) {
-            refreshHandoffExpiry();
-        }
-
-        try {
-            const requestId = uuidv4();
-            const requestPayload = isHandoffMode
-                ? {
-                    route: 'handoff',
-                    handoff: true,
-                    handoff_timeout_sec: handoffTimeout,
-                    handoff_reason: handoffReason,
-                    chatInput: cleanedText,
-                    text: cleanedText
-                }
-                : {
-                    chatInput: cleanedText,
-                    text: cleanedText,
-                    inputType: 'text',
-                    attachments: [],
-                    history: history.slice(0, -1)
-                };
-
-            if (isHandoffMode && handoffSession) {
-                requestPayload.session_id = handoffSession;
-            } else if (!isHandoffMode && sessionToken) {
-                requestPayload.sessionId = sessionToken;
-            }
-
-            const requestMeta = {
-                visitorId: visitorId,
-                ownerId: metaOwnerOverride || visitorId,
-                scope: metaScopeOverride || 'web',
-                entityId: metaEntityOverride || (window.location.hostname || ''),
-                requestId: requestId,
-                pageUrl: window.location.href
-            };
-
-            if (isHandoffMode && handoffSession) {
-                requestMeta.sessionId = handoffSession;
-            } else if (!isHandoffMode && sessionToken) {
-                requestMeta.sessionId = sessionToken;
-            }
-
-            const payload = {
-                proxy_id: chatConfig.proxy_id,
-                config_key: chatConfig.config_key,
-                payload: requestPayload,
-                meta: requestMeta
-            };
-
-            const result = await postProxy(payload);
-            const response = result ? result.response : null;
-            const data = result ? result.data : null;
-            const timeout = result ? result.timeout : false;
-            if (isRateLimitResponse(response, data)) {
-                markRateLimited(response, data);
-                if (typingIndicator && typingIndicator.parentNode) {
-                    typingIndicator.remove();
-                }
-                addMessage('bot', getRateLimitMessage());
-                return;
-            }
-
-            if (!response || !response.ok || !data) {
-                const errorMessage = timeout
-                    ? 'Koneksi timeout. Silakan coba lagi.'
-                    : (data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.');
-                if (typingIndicator && typingIndicator.parentNode) {
-                    typingIndicator.remove();
-                }
-                addMessage('bot', 'Error: ' + errorMessage);
-                return;
-            }
-
-            const botResponse = extractBotMessage(data);
-            const finalText = (typeof botResponse === 'string' ? botResponse : '').trim();
-            const handoffInfo = data && typeof data === 'object' ? data.handoff : null;
-            const isForwarded = isHandoffMode && handoffInfo && handoffInfo.forwarded;
-            if (handoffInfo && handoffInfo.from_admin) {
-                handoffBound = true;
-                updateHandoffUI();
-                processHandoffQueue();
-            }
-
-            if (typingIndicator && typingIndicator.parentNode) {
-                const delay = typingDelayForText(finalText);
-                const elapsed = typingStartedAt ? Date.now() - typingStartedAt : 0;
-                const remaining = Math.max(0, delay - elapsed);
-                if (remaining > 0) {
-                    await new Promise((resolve) => setTimeout(resolve, remaining));
-                }
-                typingIndicator.remove();
-            }
-
-            syncHandoffStateFromResponse(data);
-            syncTransportFromResponse(data);
-
-            if (!isForwarded) {
-                const safeText = finalText !== '' ? finalText : 'Maaf, saya tidak dapat memproses permintaan tersebut.';
-                const inboundId = handoffInfo && handoffInfo.message_id ? handoffInfo.message_id : null;
-                const isDup = handoffInfo && handoffInfo.from_admin ? isDuplicateInbound(safeText, inboundId) : false;
-                if (!isDup) {
-                    addMessage('bot', safeText);
-                    history.push({ sender: 'bot', text: safeText });
-                    saveHistory();
-                    if (handoffInfo && handoffInfo.from_admin) {
-                        trackInboundMessage(safeText, inboundId);
-                    }
-                }
-            }
-        } catch (error) {
-            if (typingIndicator && typingIndicator.parentNode) {
-                typingIndicator.remove();
-            }
-            addMessage('bot', 'Failed to connect to the chatbot service.');
-        } finally {
-            input.disabled = false;
-            sendButton.disabled = false;
-            setSendLoading(false);
-            input.focus();
-        }
-    }
-
-    async function sendHandoffRequest() {
-        if (!handoffEnabled || !chatConfig.proxy_url || handoffInFlight) {
-            return;
-        }
-        if (isRateLimited()) {
-            addMessage('bot', getRateLimitMessage());
-            return;
-        }
-
-        handoffInFlight = true;
-        setHandoffActive(true, { bound: false });
-        if (handoffButton) {
-            handoffButton.disabled = true;
-        }
-        input.disabled = true;
-        sendButton.disabled = true;
-        const historySnapshot = history.length > 0 ? history.slice(-6) : [];
-
-        if (handoffNotice) {
-            addMessage('bot', handoffNotice);
-            history.push({ sender: 'bot', text: handoffNotice });
-            saveHistory();
-        }
-
-        try {
-            const requestId = uuidv4();
-            const handoffMessage = handoffLabel
-                ? 'User meminta ' + handoffLabel
-                : 'User meminta chat dengan admin.';
-            const requestPayload = {
-                route: 'handoff',
-                handoff: true,
-                handoff_init: true,
-                handoff_timeout_sec: handoffTimeout,
-                handoff_reason: handoffReason,
-                chatInput: handoffMessage,
-                text: handoffMessage
-            };
-            if (historySnapshot.length) {
-                requestPayload.handoff_history = historySnapshot;
-            }
-
-            const handoffSession = getHandoffSessionId();
-            if (handoffSession) {
-                requestPayload.session_id = handoffSession;
-            }
-
-            const requestMeta = {
-                visitorId: visitorId,
-                ownerId: metaOwnerOverride || visitorId,
-                scope: metaScopeOverride || 'web',
-                entityId: metaEntityOverride || (window.location.hostname || ''),
-                requestId: requestId,
-                pageUrl: window.location.href
-            };
-
-            if (handoffSession) {
-                requestMeta.sessionId = handoffSession;
-            }
-
-            const payload = {
-                proxy_id: chatConfig.proxy_id,
-                config_key: chatConfig.config_key,
-                payload: requestPayload,
-                meta: requestMeta
-            };
-
-            const result = await postProxy(payload);
-            const response = result ? result.response : null;
-            const data = result ? result.data : null;
-            const timeout = result ? result.timeout : false;
-
-            if (isRateLimitResponse(response, data)) {
-                markRateLimited(response, data);
-                addMessage('bot', getRateLimitMessage());
-            } else if (!response || !response.ok || !data) {
-                const errorMessage = timeout
-                    ? 'Koneksi timeout. Silakan coba lagi.'
-                    : (data && data.error ? data.error : 'Terjadi kesalahan saat menghubungi server.');
-                addMessage('bot', 'Error: ' + errorMessage);
-            } else {
-                syncHandoffStateFromResponse(data);
-                syncTransportFromResponse(data);
-                const handoffResponse = extractBotMessage(data);
-                const inboundId = data && data.handoff && data.handoff.message_id ? data.handoff.message_id : null;
-                if (handoffResponse && !isDuplicateInbound(handoffResponse, inboundId)) {
-                    addMessage('bot', handoffResponse);
-                    history.push({ sender: 'bot', text: handoffResponse });
-                    saveHistory();
-                    trackInboundMessage(handoffResponse, inboundId);
-                }
-            }
-        } catch (error) {
-            addMessage('bot', 'Failed to connect to the chatbot service.');
-        } finally {
-            handoffInFlight = false;
-            if (handoffButton) {
-                handoffButton.disabled = false;
-            }
-            input.disabled = false;
-            sendButton.disabled = false;
-        }
-    }
-
-    async function sendHandoffOff(sessionOverride) {
-        if (!handoffEnabled) {
-            return;
-        }
-        const handoffSession = sessionOverride || getHandoffSessionId();
-        if (!handoffSession) {
-            return;
-        }
-        if (canUseHandoffWs()) {
-            const wsResult = await sendHandoffOffWs('Sesi chat dengan Admin diakhiri oleh user.');
-            const wsData = wsResult && wsResult.data && typeof wsResult.data === 'object' ? wsResult.data : null;
-            if (wsData) {
-                syncHandoffStateFromResponse(wsData);
-                syncTransportFromResponse(wsData);
-            }
-            if (wsResult && wsResult.ok) {
-                return;
-            }
-        }
-        if (!chatConfig.proxy_url) {
-            return;
-        }
-        try {
-            const requestId = uuidv4();
-            const requestPayload = {
-                route: 'handoff_off',
-                session_id: handoffSession,
-                text: 'Sesi chat dengan Admin diakhiri oleh user.'
-            };
-
-            const requestMeta = {
-                visitorId: visitorId,
-                ownerId: metaOwnerOverride || visitorId,
-                scope: metaScopeOverride || 'web',
-                entityId: metaEntityOverride || (window.location.hostname || ''),
-                requestId: requestId,
-                pageUrl: window.location.href
-            };
-            requestMeta.sessionId = handoffSession;
-
-            const payload = {
-                proxy_id: chatConfig.proxy_id,
-                config_key: chatConfig.config_key,
-                payload: requestPayload,
-                meta: requestMeta
-            };
-
-            const { data } = await postProxy(payload);
-            if (data && typeof data === 'object' && data !== null && data.csrf_token) {
-                csrfToken = data.csrf_token;
-            }
-        } catch (error) {
-            // ignore handoff_off failures
-        }
-    }
-
-    async function syncHandoffStatus() {
-        if (!handoffEnabled || !chatConfig.proxy_url) {
-            return;
-        }
-        if (isRateLimited()) {
-            return;
-        }
-        if (handoffInFlight) {
-            return;
-        }
-        const handoffSession = getHandoffSessionId();
-        if (!handoffSession) {
-            return;
-        }
-        try {
-            const requestId = uuidv4();
-            const requestPayload = {
-                route: 'handoff_status',
-                session_id: handoffSession
-            };
-
-            const requestMeta = {
-                visitorId: visitorId,
-                ownerId: metaOwnerOverride || visitorId,
-                scope: metaScopeOverride || 'web',
-                entityId: metaEntityOverride || (window.location.hostname || ''),
-                requestId: requestId,
-                pageUrl: window.location.href
-            };
-
-            requestMeta.sessionId = handoffSession;
-
-            const payload = {
-                proxy_id: chatConfig.proxy_id,
-                config_key: chatConfig.config_key,
-                payload: requestPayload,
-                meta: requestMeta
-            };
-
-            const result = await postProxy(payload);
-            const response = result ? result.response : null;
-            const data = result ? result.data : null;
-            if (isRateLimitResponse(response, data)) {
-                markRateLimited(response, data);
-                return;
-            }
-            if (response && response.ok && data) {
-                syncHandoffStateFromResponse(data);
-            }
-        } catch (error) {
-            // ignore status sync failures
-        }
-    }
-
-    async function pollHandoffReplies() {
-        if (!handoffEnabled || !chatConfig.proxy_url) {
-            return { ok: false, repliesCount: 0 };
-        }
-        const handoffSession = getHandoffSessionId();
-        if (!handoffSession) {
-            return { ok: false, repliesCount: 0 };
-        }
-        if (isRateLimited()) {
-            return { ok: false, repliesCount: 0, rateLimited: true, retryMs: getRateLimitRemaining() };
-        }
-        try {
-            const requestId = uuidv4();
-            const requestPayload = {
-                route: 'handoff_poll',
-                session_id: handoffSession
-            };
-
-            const requestMeta = {
-                visitorId: visitorId,
-                ownerId: metaOwnerOverride || visitorId,
-                scope: metaScopeOverride || 'web',
-                entityId: metaEntityOverride || (window.location.hostname || ''),
-                requestId: requestId,
-                pageUrl: window.location.href
-            };
-
-            requestMeta.sessionId = handoffSession;
-
-            const payload = {
-                proxy_id: chatConfig.proxy_id,
-                config_key: chatConfig.config_key,
-                payload: requestPayload,
-                meta: requestMeta
-            };
-
-            const { response, data } = await postProxy(payload);
-            if (!response || !response.ok || !data) {
-                return { ok: false, repliesCount: 0 };
-            }
-            if (isRateLimitResponse(response, data)) {
-                markRateLimited(response, data);
-                return { ok: false, repliesCount: 0, rateLimited: true, retryMs: getRateLimitRemaining() };
-            }
-            syncHandoffStateFromResponse(data);
-            const replies = Array.isArray(data.replies) ? data.replies : [];
-            if (replies.length === 0) {
-                return { ok: true, repliesCount: 0 };
-            }
-            if (!handoffBound) {
-                handoffBound = true;
-                updateHandoffUI();
-                processHandoffQueue();
-            }
-            replies.forEach((reply) => {
-                if (!reply || typeof reply !== 'object') {
-                    return;
-                }
-                const text = extractBotMessage(reply);
-                const inboundId = reply.id || reply.message_id || reply.db_message_id || null;
-                if (!text) {
-                    return;
-                }
-                if (isDuplicateInbound(text, inboundId)) {
-                    return;
-                }
-                addMessage('bot', text);
-                history.push({ sender: 'bot', text: text });
-                saveHistory();
-                trackInboundMessage(text, inboundId);
-            });
-            return { ok: true, repliesCount: replies.length };
-        } catch (error) {
-            // ignore polling errors
-            return { ok: false, repliesCount: 0 };
-        }
-    }
-
-    function startHandoffPolling() {
-        if (handoffPollingActive) {
-            return;
-        }
-        handoffPollingActive = true;
-        handoffPollDelayMs = handoffPollBaseMs;
-
-        const scheduleNext = (delayMs) => {
-            if (!handoffEnabled || !handoffActive) {
-                return;
-            }
-            const delay = Math.max(handoffPollBaseMs, Math.min(handoffPollMaxMs, delayMs));
-            handoffPollTimer = setTimeout(runPollTick, delay);
-        };
-
-        const runPollTick = async () => {
-            handoffPollTimer = null;
-            if (!handoffEnabled || !handoffActive) {
-                return;
-            }
-            if (canUseHandoffWs() && streamSocket && streamSocket.readyState === WebSocket.OPEN) {
-                handoffPollDelayMs = handoffPollBaseMs;
-                scheduleNext(handoffPollDelayMs);
-                return;
-            }
-            const result = await pollHandoffReplies();
-            if (result && result.rateLimited) {
-                const retryMs = result.retryMs || handoffPollBaseMs;
-                handoffPollDelayMs = Math.min(handoffPollMaxMs, Math.max(handoffPollBaseMs, retryMs));
-                scheduleNext(handoffPollDelayMs);
-                return;
-            }
-            if (result && result.ok) {
-                if (result.repliesCount > 0) {
-                    handoffPollDelayMs = handoffPollBaseMs;
-                } else {
-                    handoffPollDelayMs = Math.min(handoffPollMaxMs, Math.floor(handoffPollDelayMs * 1.35));
-                }
-            } else {
-                handoffPollDelayMs = Math.min(handoffPollMaxMs, Math.floor(handoffPollDelayMs * 1.6));
-            }
-            scheduleNext(handoffPollDelayMs);
-        };
-
-        runPollTick();
-    }
-
-    function stopHandoffPolling() {
-        handoffPollingActive = false;
-        if (handoffPollTimer) {
-            clearTimeout(handoffPollTimer);
-            handoffPollTimer = null;
-        }
-    }
-
-    async function bootstrapChat() {
-        try {
-            const response = await fetch(bootstrapUrl, {
-                method: 'POST',
-                credentials: 'same-origin'
-            });
-
-            if (!response.ok) {
-                throw new Error('Bootstrap request failed with status ' + response.status);
-            }
-
-            const bootstrapData = await response.json();
-            if (!bootstrapData || !bootstrapData.success) {
-                throw new Error(bootstrapData && bootstrapData.error ? bootstrapData.error : 'Bootstrap failed');
-            }
-
-            chatConfig = bootstrapData;
-            csrfToken = bootstrapData.csrf_token || null;
-            updateProxyTimeoutFromConfig(bootstrapData);
-            input.disabled = false;
-            sendButton.disabled = false;
-            root.classList.add('ai-chatbot-root--ready');
-            ensureInputContrast();
-            if (handoffEnabled && getHandoffSessionId()) {
-                syncHandoffStatus();
-            }
-        } catch (error) {
-            console.error('AI Chatbot bootstrap failed:', error);
-            root.style.display = 'none';
-        }
-    }
-
-    chatButton.addEventListener('click', toggleChat);
-    closeButton.addEventListener('click', closeChat);
-    if (handoffButton) {
-        handoffButton.addEventListener('click', (event) => {
-            event.preventDefault();
-            const sessionToClose = handoffActive ? getHandoffSessionId() : (handoffSessionId || '');
-            if (handoffActive || sessionToClose) {
-                if (handoffActive) {
-                    addHandoffNotice('Sesi chat dengan Admin diakhiri oleh user.');
-                }
-                setHandoffActive(false);
-                sendHandoffOff(sessionToClose);
-                return;
-            }
-            sendHandoffRequest();
-        });
-    }
-    if (scrollButton) {
-        scrollButton.addEventListener('click', (event) => {
-            event.preventDefault();
-            scrollToBottom();
-        });
-    }
-    if (messagesContainer) {
-        messagesContainer.addEventListener('scroll', updateScrollButton);
-        messagesContainer.addEventListener('click', (event) => {
-            const target = event.target;
-            if (!target) {
-                return;
-            }
-            const button = target.closest('.chatbot-copy-btn');
-            if (!button) {
-                return;
-            }
-            event.preventDefault();
-            const messageEl = button.closest('.chatbot-message');
-            const text = getMessagePlainText(messageEl);
-            if (!text) {
-                return;
-            }
-            copyToClipboard(text).then(() => {
-                button.setAttribute('title', 'Copied');
-                setTimeout(() => {
-                    button.setAttribute('title', 'Copy');
-                }, 1200);
-            }).catch(() => {
-                // ignore copy failures
-            });
-        });
-    }
-    form.addEventListener('submit', (event) => {
-        event.preventDefault();
-        sendMessage();
-    });
-    input.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            sendMessage();
-        }
-    });
-    input.addEventListener('focus', () => {
-        ensureInputContrast();
-    });
-    input.addEventListener('input', () => {
-        ensureInputContrast();
-    });
-    if (avatarImg && avatarImg.tagName === 'IMG') {
-        avatarImg.addEventListener('click', (event) => {
-            event.preventDefault();
-            openImageViewer(avatarImg.src);
-        });
-    }
-    if (imageViewer) {
-        imageViewer.addEventListener('click', (event) => {
-            if (event.target === imageViewer) {
-                closeImageViewer();
-            }
-        });
-    }
-    if (imageViewerClose) {
-        imageViewerClose.addEventListener('click', (event) => {
-            event.preventDefault();
-            closeImageViewer();
-        });
-    }
-    document.addEventListener('click', handleDocumentClick);
-    document.addEventListener('keydown', handleKeydown);
-    window.addEventListener('resize', updateAutoHeight);
-    if (window.matchMedia) {
-        const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        if (colorSchemeQuery && typeof colorSchemeQuery.addEventListener === 'function') {
-            colorSchemeQuery.addEventListener('change', ensureInputContrast);
-        } else if (colorSchemeQuery && typeof colorSchemeQuery.addListener === 'function') {
-            colorSchemeQuery.addListener(ensureInputContrast);
-        }
-    }
-
-    window.addEventListener('unload', () => {
-        document.removeEventListener('click', handleDocumentClick);
-        document.removeEventListener('keydown', handleKeydown);
-        window.removeEventListener('resize', updateAutoHeight);
-        stopHandoffPolling();
-        stopStream(true);
-    });
-
-    loadHistory();
-    restoreHandoffState();
-    bootstrapChat();
-});
+})();
 </script>
+{/literal}
+
+{include file="admin/footer.tpl"}
