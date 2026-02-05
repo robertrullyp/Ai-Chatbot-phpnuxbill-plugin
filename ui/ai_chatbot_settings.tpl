@@ -76,6 +76,14 @@
         font-weight: 600;
         font-size: 12px;
     }
+    .chatbot-status-support {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--chatbot-muted);
+        max-width: 260px;
+        line-height: 1.4;
+    }
+    .dark-mode .chatbot-status-support { color: #b9c4d6; }
     .chatbot-status::before { content: ""; width: 7px; height: 7px; border-radius: 999px; background: currentColor; display: inline-block; }
     .chatbot-status--on { background: rgba(16, 185, 129, 0.12); color: #0f766e; }
     .chatbot-status--off { background: rgba(244, 63, 94, 0.12); color: #be123c; }
@@ -294,6 +302,9 @@
                                 <span class="chatbot-status {if $is_enabled}chatbot-status--on{else}chatbot-status--off{/if}">
                                     {if $is_enabled}Active{else}Disabled{/if}
                                 </span>
+                                <div class="chatbot-status-support">
+                                    AI Chatbot didukung dan terintegrasi penuh dengan <a href="https://gateway.drnet.biz.id" target="_blank" rel="noopener noreferrer"><strong>DRNet Gateway</strong></a>.
+                                </div>
                             </div>
                             <div class="chatbot-summary__endpoint">
                                 <span class="chatbot-summary__label">Endpoint Publik/Customer</span>
@@ -1192,7 +1203,7 @@
                             </div>
                         </div>
                         <div class="chatbot-form-actions">
-                            <div class="chatbot-form-note">AI Chatbot didukung dan terintegrasi penuh dengan <a href="https://gateway.drnet.biz.id" target="_blank" rel="noopener noreferrer">DRNet Gateway</a>.</div>
+                            <div class="chatbot-form-note">AI Chatbot didukung dan terintegrasi penuh dengan <a href="https://gateway.drnet.biz.id" target="_blank" rel="noopener noreferrer"><strong>DRNet Gateway</strong></a>.</div>
                             <button type="submit" name="save" value="save" class="btn btn-primary">Save Settings</button>
                         </div>
                     </form>
