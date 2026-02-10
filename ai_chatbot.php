@@ -363,6 +363,23 @@ function ai_chatbot_normalize_target_path($value)
     return implode('/', $normalized_parts);
 }
 
+function ai_chatbot_is_footer_template_path($path)
+{
+    $normalized = ai_chatbot_normalize_target_path($path);
+    if ($normalized === '') {
+        return false;
+    }
+
+    if (
+        strpos($normalized, 'ui/ui/') !== 0 &&
+        strpos($normalized, 'ui/ui_custom/') !== 0
+    ) {
+        return false;
+    }
+
+    return (bool) preg_match('#^ui/(ui|ui_custom)/[^/]+/footer[^/]*\.tpl$#i', $normalized);
+}
+
 function ai_chatbot_normalize_footer_targets($value)
 {
     if (!is_string($value)) {
@@ -371,7 +388,7 @@ function ai_chatbot_normalize_footer_targets($value)
 
     $targets = array_map('ai_chatbot_normalize_target_path', explode(',', $value));
     $filtered_targets = array_filter($targets, static function ($path) {
-        return $path !== '';
+        return $path !== '' && ai_chatbot_is_footer_template_path($path);
     });
     $unique_targets = array_values(array_unique($filtered_targets));
 
@@ -549,6 +566,31 @@ function ai_chatbot_refresh_snippet($contents)
     return $updated === null ? $contents : $updated;
 }
 
+function ai_chatbot_remove_snippet_from_non_footer_target($relative)
+{
+    $normalized = ai_chatbot_normalize_target_path($relative);
+    if ($normalized === '' || ai_chatbot_is_footer_template_path($normalized)) {
+        return false;
+    }
+
+    $absolute = ai_chatbot_absolute_path($normalized);
+    if (!$absolute || !is_file($absolute) || !is_readable($absolute)) {
+        return false;
+    }
+
+    $contents = @file_get_contents($absolute);
+    if ($contents === false || strpos($contents, AI_CHATBOT_SNIPPET_START) === false) {
+        return false;
+    }
+
+    $updated = ai_chatbot_remove_snippet($contents);
+    if ($updated === $contents) {
+        return false;
+    }
+
+    return @file_put_contents($absolute, $updated, LOCK_EX) !== false;
+}
+
 function ai_chatbot_footer_contains_marker($relative)
 {
     $absolute = ai_chatbot_absolute_path($relative);
@@ -571,7 +613,7 @@ function ai_chatbot_all_known_footer_targets(array $selected_targets)
 
     foreach ($selected_targets as $target) {
         $normalized = ai_chatbot_normalize_target_path($target);
-        if ($normalized === '') {
+        if ($normalized === '' || !ai_chatbot_is_footer_template_path($normalized)) {
             continue;
         }
 
@@ -586,7 +628,7 @@ function ai_chatbot_all_known_footer_targets(array $selected_targets)
     }
 
     $known = array_filter(array_map('ai_chatbot_normalize_target_path', $known), static function ($path) {
-        return $path !== '';
+        return $path !== '' && ai_chatbot_is_footer_template_path($path);
     });
 
     $known = array_values(array_unique($known));
@@ -662,7 +704,7 @@ function ai_chatbot_sync_footer_includes($is_enabled, array $selected_targets)
 {
     $normalized_targets = array_map('ai_chatbot_normalize_target_path', $selected_targets);
     $normalized_targets = array_filter($normalized_targets, static function ($path) {
-        return $path !== '';
+        return $path !== '' && ai_chatbot_is_footer_template_path($path);
     });
     $normalized_targets = array_values(array_unique($normalized_targets));
     sort($normalized_targets);
@@ -672,6 +714,18 @@ function ai_chatbot_sync_footer_includes($is_enabled, array $selected_targets)
         && $state['enabled'] === (bool) $is_enabled
         && $state['targets'] === $normalized_targets
         && (($state['version'] ?? 0) === AI_CHATBOT_SNIPPET_VERSION);
+
+    $changed = false;
+    if (ai_chatbot_remove_snippet_from_non_footer_target('system/plugin/ui/ai_chatbot.tpl')) {
+        $changed = true;
+    }
+    if ($state && isset($state['targets']) && is_array($state['targets'])) {
+        foreach ($state['targets'] as $stale_target) {
+            if (ai_chatbot_remove_snippet_from_non_footer_target($stale_target)) {
+                $changed = true;
+            }
+        }
+    }
 
     if ($state_matches) {
         if ($is_enabled && !empty($normalized_targets)) {
@@ -699,9 +753,11 @@ function ai_chatbot_sync_footer_includes($is_enabled, array $selected_targets)
     }
 
     $candidates = ai_chatbot_all_known_footer_targets($normalized_targets);
-    $changed = false;
 
     foreach ($candidates as $relative) {
+        if (!ai_chatbot_is_footer_template_path($relative)) {
+            continue;
+        }
         $absolute = ai_chatbot_absolute_path($relative);
         if (!$absolute || !is_file($absolute) || !is_readable($absolute)) {
             continue;
@@ -893,6 +949,52 @@ function ai_chatbot_setting_present($key)
     }
 
     return $value !== null;
+}
+
+function ai_chatbot_parse_user_data($raw)
+{
+    if (is_array($raw)) {
+        return $raw;
+    }
+    if (!is_string($raw)) {
+        return [];
+    }
+
+    $raw = trim($raw);
+    if ($raw === '') {
+        return [];
+    }
+
+    $decoded = json_decode($raw, true);
+
+    return is_array($decoded) ? $decoded : [];
+}
+
+function ai_chatbot_admin_api_key()
+{
+    if (!class_exists('Admin') || !Admin::getID()) {
+        return '';
+    }
+
+    $admin = Admin::_info();
+    if (!$admin) {
+        return '';
+    }
+
+    $raw = '';
+    if (is_array($admin)) {
+        $raw = $admin['data'] ?? '';
+    } elseif (is_object($admin)) {
+        $raw = $admin->data ?? '';
+    }
+
+    $data = ai_chatbot_parse_user_data($raw);
+    $key = $data['admin_api_key'] ?? '';
+    if (!is_string($key) || trim($key) === '') {
+        $key = $data['ai_chatbot_api_key'] ?? '';
+    }
+
+    return is_string($key) ? trim($key) : '';
 }
 
 function ai_chatbot_store_sse_context($session_id, array $transport)
@@ -1214,6 +1316,13 @@ function ai_chatbot_collect_proxy_config(array $settings)
                 $auth['jwt_ttl'] = 300;
             }
             break;
+    }
+
+    if ($context === 'admin' && $auth['type'] === 'header') {
+        $admin_key = ai_chatbot_admin_api_key();
+        if ($admin_key !== '') {
+            $auth['header_value'] = $admin_key;
+        }
     }
 
     return [
@@ -2297,7 +2406,40 @@ function ai_chatbot_run_proxy()
         unset($clean_meta['scope'], $clean_meta['entityId'], $clean_meta['entity_id']);
     }
 
-    if (class_exists('User') && User::getID()) {
+    $context = isset($proxy_config['context']) ? trim((string) $proxy_config['context']) : '';
+    if ($context === '') {
+        $context = ai_chatbot_detect_context(_req('context'));
+    }
+    if ($context !== '') {
+        $clean_meta['context'] = $context;
+    }
+
+    if ($context === 'admin' && class_exists('Admin') && Admin::getID()) {
+        $admin_info = Admin::_info();
+        $admin_username = isset($admin_info['username']) ? trim((string) $admin_info['username']) : '';
+        $admin_phone = isset($admin_info['phonenumber']) ? trim((string) $admin_info['phonenumber']) : '';
+        if ($admin_phone === '' && isset($admin_info['phone'])) {
+            $admin_phone = trim((string) $admin_info['phone']);
+        }
+        $admin_name = isset($admin_info['fullname']) ? trim((string) $admin_info['fullname']) : '';
+        if ($admin_name === '' && isset($admin_info['name'])) {
+            $admin_name = trim((string) $admin_info['name']);
+        }
+        $admin_email = isset($admin_info['email']) ? trim((string) $admin_info['email']) : '';
+
+        if ($admin_username !== '') {
+            $clean_meta['username'] = ai_chatbot_limit_length($admin_username, 120);
+        }
+        if ($admin_phone !== '') {
+            $clean_meta['phone'] = ai_chatbot_limit_length($admin_phone, 120);
+        }
+        if ($admin_name !== '') {
+            $clean_meta['name'] = ai_chatbot_limit_length($admin_name, 160);
+        }
+        if ($admin_email !== '') {
+            $clean_meta['email'] = ai_chatbot_limit_length($admin_email, 200);
+        }
+    } elseif ($context === 'customer' && class_exists('User') && User::getID()) {
         $customer = User::_info();
         $customer_username = isset($customer['username']) ? trim((string) $customer['username']) : '';
         $customer_phone = isset($customer['phonenumber']) ? trim((string) $customer['phonenumber']) : '';
@@ -2308,6 +2450,7 @@ function ai_chatbot_run_proxy()
         if ($customer_name === '' && isset($customer['name'])) {
             $customer_name = trim((string) $customer['name']);
         }
+        $customer_email = isset($customer['email']) ? trim((string) $customer['email']) : '';
 
         if ($customer_username !== '') {
             $clean_meta['username'] = ai_chatbot_limit_length($customer_username, 120);
@@ -2318,7 +2461,9 @@ function ai_chatbot_run_proxy()
         if ($customer_name !== '') {
             $clean_meta['name'] = ai_chatbot_limit_length($customer_name, 160);
         }
-
+        if ($customer_email !== '') {
+            $clean_meta['email'] = ai_chatbot_limit_length($customer_email, 200);
+        }
     }
 
     $session_id = '';
