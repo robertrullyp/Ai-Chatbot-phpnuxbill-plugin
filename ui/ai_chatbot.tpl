@@ -2,6 +2,10 @@
 {assign var=__ai_chatbot_rendering value=1 scope='global'}
 {* Smarty *}
 {assign var=chatbot value=$_c}
+{assign var=is_non_public_chat value=0}
+{if (isset($_admin) && $_admin) || (isset($_user) && $_user)}
+    {assign var=is_non_public_chat value=1}
+{/if}
 {assign var=chatbot_title value=$chatbot.chatbot_title|default:'AI Chat'}
 {assign var=button_label value=$chatbot.chatbot_button_label|trim}
 {if $button_label == ''}
@@ -555,6 +559,33 @@
         position: relative;
     }
 
+    .chatbot-message-attachments {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .chatbot-message-attachment {
+        width: 84px;
+        height: 84px;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        background: rgba(148, 163, 184, 0.12);
+        cursor: zoom-in;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .chatbot-message-attachment img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
     .chatbot-message-status {
         display: block;
         margin-top: 6px;
@@ -755,6 +786,11 @@
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4);
     }
 
+    .chatbot-message.user .chatbot-message-attachment {
+        border-color: rgba(255, 255, 255, 0.45);
+        background: rgba(255, 255, 255, 0.2);
+    }
+
     .chatbot-message.typing {
         align-self: center;
         margin-left: auto;
@@ -859,6 +895,7 @@
 
     .chatbot-input-area {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: 10px;
         padding: var(--chatbot-input-area-padding-y) var(--chatbot-input-area-padding-x);
@@ -868,6 +905,88 @@
         -webkit-backdrop-filter: blur(var(--chatbot-input-area-blur));
         position: relative;
         z-index: 1;
+    }
+
+    .chatbot-input-area.is-dragover {
+        border-top-color: var(--chatbot-primary);
+        box-shadow: inset 0 0 0 1px rgba(13, 148, 136, 0.35);
+    }
+
+    .chatbot-attachment-list {
+        flex: 0 0 100%;
+        display: none;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 2px;
+    }
+
+    .chatbot-attachment-list.is-visible {
+        display: flex;
+    }
+
+    .chatbot-attachment-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 100%;
+        padding: 6px 8px;
+        border-radius: 11px;
+        border: 1px solid var(--chatbot-input-border);
+        background: rgba(148, 163, 184, 0.14);
+    }
+
+    .chatbot-attachment-thumb {
+        width: 42px;
+        height: 42px;
+        border-radius: 8px;
+        object-fit: cover;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(148, 163, 184, 0.1);
+        cursor: zoom-in;
+    }
+
+    .chatbot-attachment-meta {
+        min-width: 0;
+        line-height: 1.2;
+    }
+
+    .chatbot-attachment-name {
+        display: block;
+        max-width: 140px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--chatbot-text);
+    }
+
+    .chatbot-attachment-size {
+        display: block;
+        font-size: 11px;
+        color: var(--chatbot-muted);
+        margin-top: 2px;
+    }
+
+    .chatbot-attachment-remove {
+        margin-left: auto;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(15, 23, 42, 0.14);
+        color: var(--chatbot-text);
+        cursor: pointer;
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        padding: 0;
+    }
+
+    .chatbot-attachment-remove:hover {
+        background: rgba(15, 23, 42, 0.22);
     }
 
     .chatbot-input-area textarea,
@@ -910,9 +1029,8 @@
         color: var(--chatbot-muted);
     }
 
-    .chatbot-input-area button {
-        background: var(--chatbot-send-bg);
-        color: var(--chatbot-send-text);
+    .chatbot-input-area .chatbot-send-btn,
+    .chatbot-input-area .chatbot-attachment-btn {
         border: none;
         border-radius: 50%;
         width: 40px;
@@ -932,11 +1050,25 @@
         overflow: hidden;
     }
 
-    .chatbot-input-area button svg {
+    .chatbot-input-area .chatbot-send-btn {
+        background: var(--chatbot-send-bg);
+        color: var(--chatbot-send-text);
+        box-shadow: 0 10px 18px rgba(13, 148, 136, 0.25);
+    }
+
+    .chatbot-input-area .chatbot-attachment-btn {
+        background: transparent;
+        color: var(--chatbot-muted);
+        border: 1px solid var(--chatbot-input-border);
+        box-shadow: none;
+    }
+
+    .chatbot-input-area .chatbot-send-btn svg,
+    .chatbot-input-area .chatbot-attachment-btn svg {
         transition: opacity 0.2s ease;
     }
 
-    .chatbot-input-area button .chatbot-send-spinner {
+    .chatbot-input-area .chatbot-send-btn .chatbot-send-spinner {
         position: absolute;
         inset: 0;
         margin: auto;
@@ -950,20 +1082,22 @@
         pointer-events: none;
     }
 
-    .chatbot-input-area button.is-loading svg {
+    .chatbot-input-area .chatbot-send-btn.is-loading svg {
         opacity: 0;
     }
 
-    .chatbot-input-area button.is-loading .chatbot-send-spinner {
+    .chatbot-input-area .chatbot-send-btn.is-loading .chatbot-send-spinner {
         opacity: 1;
     }
 
-    .chatbot-input-area button:hover:not([disabled]) {
+    .chatbot-input-area .chatbot-send-btn:hover:not([disabled]),
+    .chatbot-input-area .chatbot-attachment-btn:hover:not([disabled]) {
         transform: translateY(-1px);
         filter: brightness(1.05);
     }
 
-    .chatbot-input-area button:disabled {
+    .chatbot-input-area .chatbot-send-btn:disabled,
+    .chatbot-input-area .chatbot-attachment-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
         transform: none;
@@ -1266,8 +1400,17 @@
         </button>
         <form class="chatbot-input-area" autocomplete="off">
             <label class="chatbot-input__label" for="chatbot-input">Type your message</label>
+            {if $is_non_public_chat == 1}
+                <input type="file" id="chatbot-attachment-input" accept="image/*" multiple style="display:none;" />
+                <div class="chatbot-attachment-list" aria-live="polite"></div>
+                <button type="button" id="chatbot-attachment-btn" class="chatbot-attachment-btn" aria-label="Tambahkan lampiran gambar" title="Lampirkan gambar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M21.44 11.05l-8.49 8.49a5 5 0 0 1-7.07-7.07l9.2-9.19a3 3 0 1 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.48-8.49"></path>
+                    </svg>
+                </button>
+            {/if}
             <textarea id="chatbot-input" name="chatbot-input" placeholder="Compose your message..." maxlength="{$chatbot.chatbot_user_input_max_chars|default:1000|intval}" rows="1" autocomplete="off"></textarea>
-            <button type="submit" id="chatbot-send" aria-label="Send message">
+            <button type="submit" id="chatbot-send" class="chatbot-send-btn" aria-label="Send message">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
@@ -1306,6 +1449,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = chatFrame ? chatFrame.querySelector('.chatbot-input-area') : null;
     const input = document.getElementById('chatbot-input');
     const sendButton = document.getElementById('chatbot-send');
+    const attachmentInput = document.getElementById('chatbot-attachment-input');
+    const attachmentButton = document.getElementById('chatbot-attachment-btn');
+    const attachmentList = chatFrame ? chatFrame.querySelector('.chatbot-attachment-list') : null;
     const statusEl = chatFrame ? chatFrame.querySelector('.chatbot-header__status') : null;
     const avatarImg = chatFrame ? chatFrame.querySelector('.chatbot-header__avatar') : null;
     const imageViewer = document.getElementById('chatbot-image-viewer');
@@ -1322,6 +1468,28 @@ document.addEventListener('DOMContentLoaded', () => {
     sendButton.disabled = true;
 
     const pageContext = "{if isset($_admin) && $_admin}admin{elseif isset($_user) && $_user}customer{/if}";
+    const allowImageAttachments = (pageContext === 'admin' || pageContext === 'customer')
+        && !!attachmentInput
+        && !!attachmentButton
+        && !!attachmentList;
+    const maxImageAttachmentCount = 5;
+    const maxImageAttachmentSize = 5 * 1024 * 1024;
+    let attachmentSeq = 0;
+    let attachmentDragDepth = 0;
+    const pendingAttachments = [];
+
+    if (attachmentButton) {
+        attachmentButton.disabled = true;
+    }
+    if (!allowImageAttachments) {
+        if (attachmentButton) {
+            attachmentButton.style.display = 'none';
+        }
+        if (attachmentList) {
+            attachmentList.style.display = 'none';
+        }
+    }
+
     const contextParam = pageContext ? '&context=' + encodeURIComponent(pageContext) : '';
     const bootstrapUrl = "{$app_url|escape:'javascript'}?_route=plugin/ai_chatbot_settings/bootstrap" + contextParam;
     const statusUrl = "{$app_url|escape:'javascript'}?_route=plugin/ai_chatbot_settings/status" + contextParam;
@@ -1355,8 +1523,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let streamReconnectTimer = null;
     let handoffPollTimer = null;
     let handoffPollingActive = false;
+    let handoffStatusInFlight = false;
+    let lastHandoffStatusSyncAt = 0;
+    let handoffOffInFlight = false;
+    let lastHandoffOffSession = '';
+    let lastHandoffOffAt = 0;
     const handoffPollBaseMs = 5000;
     const handoffPollMaxMs = 30000;
+    const handoffStatusThrottleMs = 1500;
+    const handoffOffDedupMs = 5000;
     let handoffPollDelayMs = handoffPollBaseMs;
     let rateLimitUntil = 0;
     const handoffAckWaiters = new Map();
@@ -1565,6 +1740,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         sendButton.classList.toggle('is-loading', isLoading);
         sendButton.setAttribute('aria-busy', isLoading ? 'true' : 'false');
+        if (allowImageAttachments && attachmentButton) {
+            attachmentButton.disabled = isLoading;
+        }
+        if (allowImageAttachments && attachmentInput) {
+            attachmentInput.disabled = isLoading;
+        }
     }
 
     function setHandoffActive(isActive, options = {}) {
@@ -1610,6 +1791,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const expiresAt = options && typeof options.expiresAt === 'number' ? options.expiresAt : 0;
+        const skipPolling = Boolean(options && options.skipPolling === true);
         if (expiresAt > 0) {
             handoffExpiresAt = expiresAt;
         } else {
@@ -1617,7 +1799,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         persistHandoffState();
         scheduleHandoffExpiryCheck();
-        startHandoffPolling();
+        if (!skipPolling) {
+            startHandoffPolling();
+        }
     }
 
     function updateHandoffUI() {
@@ -1683,7 +1867,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             type: 'handoff:send',
             id: requestId,
-            text: text,
             chatInput: text,
             handoff_timeout_sec: handoffTimeout,
             handoff_reason: handoffReason
@@ -1742,7 +1925,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = {
                 active: 1,
                 expires_at: handoffExpiresAt || (Date.now() + (handoffTimeout * 1000)),
-                session_id: handoffSessionId || null
+                sessionId: handoffSessionId || null
             };
             localStorage.setItem(handoffStorageKey, JSON.stringify(payload));
         } catch (error) {
@@ -1927,7 +2110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!handoffActive) {
             return;
         }
-        const eventSessionId = payload.session_id || payload.sessionId || payload.session || '';
+        const eventSessionId = payload.sessionId || payload.session_id || payload.session || '';
         if (eventSessionId) {
             setHandoffSessionId(eventSessionId);
         }
@@ -2004,7 +2187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function resolveStreamUrl(transport, token, sessionId) {
         const direct = transport.ws_url || transport.wsUrl || transport.url;
         if (direct) {
-            const withParams = appendStreamParams(String(direct), { token: token, session_id: sessionId });
+            const withParams = appendStreamParams(String(direct), { token: token, sessionId: sessionId });
             return normalizeWsUrl(withParams);
         }
         const endpoint = transport.endpoint ? String(transport.endpoint) : '';
@@ -2029,7 +2212,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!url) {
             return '';
         }
-        const withParams = appendStreamParams(url, { token: token, session_id: sessionId });
+        const withParams = appendStreamParams(url, { token: token, sessionId: sessionId });
         return normalizeWsUrl(withParams);
     }
 
@@ -2188,7 +2371,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const token = transport.token ? String(transport.token) : '';
-        const transportSessionId = transport.session_id ? String(transport.session_id) : '';
+        const transportSessionId = transport.sessionId
+            ? String(transport.sessionId)
+            : (transport.session_id ? String(transport.session_id) : '');
         if (transportSessionId) {
             setHandoffSessionId(transportSessionId);
         }
@@ -2232,11 +2417,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const info = data.handoff;
             const candidates = [];
             if (info && typeof info === 'object') {
-                candidates.push(info.session_id, info.sessionId);
+                candidates.push(info.sessionId, info.session_id);
             }
-            candidates.push(data.session_id, data.sessionId);
+            candidates.push(data.sessionId, data.session_id);
             if (data.transport && typeof data.transport === 'object') {
-                candidates.push(data.transport.session_id, data.transport.sessionId);
+                candidates.push(data.transport.sessionId, data.transport.session_id);
             }
             for (const candidate of candidates) {
                 const normalized = normalizeSessionId(candidate);
@@ -2393,7 +2578,8 @@ document.addEventListener('DOMContentLoaded', () => {
             id: handoffQueueSeq + 1,
             text: text,
             element: messageEl,
-            attempts: 0
+            attempts: 0,
+            requestId: uuidv4()
         });
         handoffQueueSeq += 1;
         processHandoffQueue();
@@ -2428,7 +2614,7 @@ document.addEventListener('DOMContentLoaded', () => {
             addMessage('bot', 'Error: Session ID tidak tersedia. Silakan coba lagi.');
             return;
         }
-        const maxAttempts = 2;
+        const maxAttempts = 1;
         const queueTimeoutMs = Math.max(15000, proxyTimeoutMs + 2000);
         while (item.attempts < maxAttempts) {
             if (isRateLimited()) {
@@ -2438,7 +2624,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 continue;
             }
             item.attempts += 1;
-            const statusLabel = item.attempts > 1 ? 'Mengirim ulang…' : 'Mengirim…';
+            const statusLabel = 'Mengirim…';
             setMessageStatus(item.element, 'sending', statusLabel);
             try {
                 const streamReadyTimeoutMs = Math.min(5000, Math.max(1500, Math.floor(queueTimeoutMs * 0.4)));
@@ -2508,17 +2694,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     scheduleStreamReconnect();
                 }
 
-                const requestId = uuidv4();
+                const requestId = item.requestId || uuidv4();
+                item.requestId = requestId;
                 const requestPayload = {
                     route: 'handoff',
                     handoff: true,
                     handoff_timeout_sec: handoffTimeout,
                     handoff_reason: handoffReason,
-                    chatInput: item.text,
-                    text: item.text
+                    chatInput: item.text
                 };
-
-                requestPayload.session_id = handoffSession;
 
                 const requestMeta = {
                     visitorId: visitorId,
@@ -2863,6 +3047,348 @@ document.addEventListener('DOMContentLoaded', () => {
         messageDiv.appendChild(button);
     }
 
+    function formatAttachmentSize(bytes) {
+        const amount = Number(bytes) || 0;
+        if (amount <= 0) {
+            return '0 B';
+        }
+        const units = ['B', 'KB', 'MB', 'GB'];
+        let value = amount;
+        let unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.length - 1) {
+            value /= 1024;
+            unitIndex += 1;
+        }
+        if (unitIndex === 0) {
+            return Math.round(value) + ' ' + units[unitIndex];
+        }
+        return value.toFixed(value >= 10 ? 1 : 2).replace(/\.0+$/, '') + ' ' + units[unitIndex];
+    }
+
+    function isImageMimeType(mimeType) {
+        return typeof mimeType === 'string' && /^image\//i.test(mimeType.trim());
+    }
+
+    function normalizeMessageAttachment(item) {
+        if (!item) {
+            return null;
+        }
+        if (typeof item === 'string') {
+            return {
+                src: item,
+                name: '',
+                type: 'image/*',
+                size: 0
+            };
+        }
+        if (typeof item !== 'object') {
+            return null;
+        }
+
+        let src = '';
+        const sourceKeys = ['src', 'url', 'dataUrl', 'data_uri', 'dataUri', 'preview'];
+        for (const key of sourceKeys) {
+            if (typeof item[key] === 'string' && item[key].trim() !== '') {
+                src = item[key].trim();
+                break;
+            }
+        }
+
+        const type = typeof item.mime === 'string' && item.mime.trim() !== ''
+            ? item.mime.trim()
+            : (typeof item.type === 'string' && item.type.trim() !== '' ? item.type.trim() : 'image/*');
+
+        if (src === '' && typeof item.data === 'string' && item.data.trim() !== '') {
+            const rawData = item.data.trim();
+            if (/^data:/i.test(rawData)) {
+                src = rawData;
+            } else {
+                src = 'data:' + (type || 'image/jpeg') + ';base64,' + rawData;
+            }
+        }
+
+        if (src === '') {
+            return null;
+        }
+
+        return {
+            src: src,
+            name: typeof item.name === 'string' ? item.name : '',
+            type: type,
+            size: typeof item.size === 'number' ? item.size : parseInt(item.size, 10) || 0
+        };
+    }
+
+    function appendMessageAttachments(contentDiv, attachments) {
+        if (!contentDiv || !Array.isArray(attachments) || attachments.length === 0) {
+            return;
+        }
+
+        const listEl = document.createElement('div');
+        listEl.className = 'chatbot-message-attachments';
+
+        attachments.forEach((attachment) => {
+            const normalized = normalizeMessageAttachment(attachment);
+            if (!normalized || !normalized.src) {
+                return;
+            }
+
+            const itemEl = document.createElement('div');
+            itemEl.className = 'chatbot-message-attachment';
+            itemEl.setAttribute('role', 'button');
+            itemEl.setAttribute('tabindex', '0');
+            itemEl.setAttribute('aria-label', 'Buka lampiran gambar');
+
+            const imageEl = document.createElement('img');
+            imageEl.src = normalized.src;
+            imageEl.alt = normalized.name || 'Lampiran gambar';
+            imageEl.loading = 'lazy';
+            imageEl.decoding = 'async';
+            itemEl.appendChild(imageEl);
+
+            const openPreview = (event) => {
+                event.preventDefault();
+                openImageViewer(normalized.src);
+            };
+
+            itemEl.addEventListener('click', openPreview);
+            itemEl.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    openPreview(event);
+                }
+            });
+
+            listEl.appendChild(itemEl);
+        });
+
+        if (listEl.children.length > 0) {
+            contentDiv.appendChild(listEl);
+        }
+    }
+
+    function renderPendingAttachments() {
+        if (!allowImageAttachments || !attachmentList) {
+            return;
+        }
+        attachmentList.innerHTML = '';
+
+        if (pendingAttachments.length === 0) {
+            attachmentList.classList.remove('is-visible');
+            return;
+        }
+
+        pendingAttachments.forEach((attachment) => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'chatbot-attachment-item';
+
+            const thumbEl = document.createElement('img');
+            thumbEl.className = 'chatbot-attachment-thumb';
+            thumbEl.src = attachment.previewUrl;
+            thumbEl.alt = attachment.name || 'Attachment';
+            thumbEl.loading = 'lazy';
+            thumbEl.decoding = 'async';
+            thumbEl.addEventListener('click', (event) => {
+                event.preventDefault();
+                openImageViewer(attachment.previewUrl);
+            });
+            itemEl.appendChild(thumbEl);
+
+            const metaEl = document.createElement('div');
+            metaEl.className = 'chatbot-attachment-meta';
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'chatbot-attachment-name';
+            nameEl.textContent = attachment.name;
+            metaEl.appendChild(nameEl);
+
+            const sizeEl = document.createElement('span');
+            sizeEl.className = 'chatbot-attachment-size';
+            sizeEl.textContent = formatAttachmentSize(attachment.size);
+            metaEl.appendChild(sizeEl);
+
+            itemEl.appendChild(metaEl);
+
+            const removeEl = document.createElement('button');
+            removeEl.type = 'button';
+            removeEl.className = 'chatbot-attachment-remove';
+            removeEl.dataset.attachmentId = String(attachment.id);
+            removeEl.setAttribute('aria-label', 'Hapus lampiran');
+            removeEl.textContent = '×';
+            itemEl.appendChild(removeEl);
+
+            attachmentList.appendChild(itemEl);
+        });
+
+        attachmentList.classList.add('is-visible');
+    }
+
+    function clearPendingAttachments() {
+        if (!allowImageAttachments) {
+            return;
+        }
+        pendingAttachments.length = 0;
+        renderPendingAttachments();
+        if (attachmentInput) {
+            attachmentInput.value = '';
+        }
+    }
+
+    function removePendingAttachmentById(attachmentId) {
+        if (!allowImageAttachments) {
+            return;
+        }
+        const targetId = String(attachmentId);
+        const index = pendingAttachments.findIndex((item) => String(item.id) === targetId);
+        if (index === -1) {
+            return;
+        }
+        pendingAttachments.splice(index, 1);
+        renderPendingAttachments();
+    }
+
+    function readFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+            reader.onerror = () => reject(new Error('read_failed'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function enqueueAttachmentFiles(fileList) {
+        if (!allowImageAttachments || !fileList || fileList.length === 0) {
+            return;
+        }
+
+        let ignoredByType = 0;
+        let ignoredBySize = 0;
+        let ignoredByLimit = 0;
+        let ignoredDuplicate = 0;
+        let ignoredByReadError = 0;
+
+        const files = Array.prototype.slice.call(fileList);
+        for (const file of files) {
+            if (!file) {
+                continue;
+            }
+            if (pendingAttachments.length >= maxImageAttachmentCount) {
+                ignoredByLimit += 1;
+                continue;
+            }
+
+            if (!isImageMimeType(file.type || '')) {
+                ignoredByType += 1;
+                continue;
+            }
+
+            const size = Number(file.size) || 0;
+            if (size <= 0 || size > maxImageAttachmentSize) {
+                ignoredBySize += 1;
+                continue;
+            }
+
+            const fileName = (file.name || 'image').trim() || 'image';
+            const fileKey = [fileName, size, Number(file.lastModified) || 0].join(':');
+            const duplicate = pendingAttachments.some((item) => item.fileKey === fileKey);
+            if (duplicate) {
+                ignoredDuplicate += 1;
+                continue;
+            }
+
+            try {
+                const dataUrl = await readFileAsDataUrl(file);
+                if (!dataUrl) {
+                    ignoredByReadError += 1;
+                    continue;
+                }
+                attachmentSeq += 1;
+                pendingAttachments.push({
+                    id: attachmentSeq,
+                    fileKey: fileKey,
+                    name: fileName,
+                    size: size,
+                    type: file.type || 'image/jpeg',
+                    previewUrl: dataUrl
+                });
+            } catch (error) {
+                ignoredByReadError += 1;
+            }
+        }
+
+        renderPendingAttachments();
+
+        if (attachmentInput) {
+            attachmentInput.value = '';
+        }
+
+        const notices = [];
+        if (ignoredByLimit > 0) {
+            notices.push('Maksimal ' + maxImageAttachmentCount + ' gambar per pesan.');
+        }
+        if (ignoredByType > 0) {
+            notices.push(ignoredByType + ' file diabaikan karena bukan gambar.');
+        }
+        if (ignoredBySize > 0) {
+            notices.push(ignoredBySize + ' gambar diabaikan karena ukuran melebihi ' + formatAttachmentSize(maxImageAttachmentSize) + '.');
+        }
+        if (ignoredDuplicate > 0) {
+            notices.push(ignoredDuplicate + ' gambar duplikat diabaikan.');
+        }
+        if (ignoredByReadError > 0) {
+            notices.push('Sebagian gambar gagal diproses.');
+        }
+        if (notices.length > 0) {
+            addMessage('bot', notices.join(' '));
+        }
+    }
+
+    function buildAttachmentPayload(attachments) {
+        if (!Array.isArray(attachments) || attachments.length === 0) {
+            return [];
+        }
+        const payload = [];
+        attachments.forEach((item) => {
+            if (!item || typeof item.previewUrl !== 'string' || item.previewUrl.trim() === '') {
+                return;
+            }
+            const commaPos = item.previewUrl.indexOf(',');
+            const encoded = commaPos >= 0 ? item.previewUrl.slice(commaPos + 1) : item.previewUrl;
+            if (!encoded) {
+                return;
+            }
+            payload.push({
+                name: item.name || 'image',
+                mime: item.type || 'image/jpeg',
+                size: Number(item.size) || 0,
+                encoding: 'base64',
+                data: encoded
+            });
+        });
+        return payload;
+    }
+
+    function hasFilesInDataTransfer(dataTransfer) {
+        if (!dataTransfer) {
+            return false;
+        }
+        if (dataTransfer.items && dataTransfer.items.length) {
+            for (let i = 0; i < dataTransfer.items.length; i += 1) {
+                if (dataTransfer.items[i] && dataTransfer.items[i].kind === 'file') {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return Boolean(dataTransfer.files && dataTransfer.files.length);
+    }
+
+    function resetAttachmentDragState() {
+        attachmentDragDepth = 0;
+        if (form) {
+            form.classList.remove('is-dragover');
+        }
+    }
+
     function addMessage(sender, text, isTyping = false, options = {}) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('chatbot-message', sender);
@@ -2877,12 +3403,17 @@ document.addEventListener('DOMContentLoaded', () => {
             contentDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
         } else {
             const messageText = text || '';
-            if (messageFormat === 'markdown') {
-                contentDiv.innerHTML = renderMarkdown(messageText, renderInline);
-            } else if (messageFormat === 'markdown_v2') {
-                contentDiv.innerHTML = renderMarkdown(messageText, renderInlineV2);
-            } else {
-                contentDiv.textContent = messageText;
+            if (messageText !== '') {
+                if (messageFormat === 'markdown') {
+                    contentDiv.innerHTML = renderMarkdown(messageText, renderInline);
+                } else if (messageFormat === 'markdown_v2') {
+                    contentDiv.innerHTML = renderMarkdown(messageText, renderInlineV2);
+                } else {
+                    contentDiv.textContent = messageText;
+                }
+            }
+            if (options && typeof options === 'object' && Array.isArray(options.attachments) && options.attachments.length > 0) {
+                appendMessageAttachments(contentDiv, options.attachments);
             }
         }
 
@@ -2946,9 +3477,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const expiresAt = parsed && typeof parsed.expires_at === 'number' ? parsed.expires_at : 0;
             if (expiresAt > 0 && expiresAt > Date.now()) {
-                const storedSessionId = parsed && typeof parsed.session_id === 'string'
-                    ? parsed.session_id
-                    : (parsed && typeof parsed.sessionId === 'string' ? parsed.sessionId : '');
+                const storedSessionId = parsed && typeof parsed.sessionId === 'string'
+                    ? parsed.sessionId
+                    : (parsed && typeof parsed.session_id === 'string' ? parsed.session_id : '');
                 if (storedSessionId) {
                     setHandoffSessionId(storedSessionId, false);
                 }
@@ -3243,7 +3774,9 @@ document.addEventListener('DOMContentLoaded', () => {
             setUnreadCount(0);
 
             checkStatus();
-            syncHandoffStatus();
+            if (handoffEnabled && (handoffActive || handoffSessionId)) {
+                syncHandoffStatus();
+            }
             ensureInputContrast();
             updateScrollButton();
 
@@ -3265,6 +3798,7 @@ document.addEventListener('DOMContentLoaded', () => {
             chatFrame.classList.remove('is-open');
             chatFrame.setAttribute('aria-hidden', 'true');
             chatButton.setAttribute('aria-expanded', 'false');
+            resetAttachmentDragState();
         }
     }
 
@@ -3509,7 +4043,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function sendMessage() {
         const rawText = input.value;
         const text = rawText.trim();
-        if (text === '' || !chatConfig.proxy_url) {
+        const hasAttachments = allowImageAttachments && pendingAttachments.length > 0;
+        if ((!hasAttachments && text === '') || !chatConfig.proxy_url) {
             return;
         }
         if (handoffInFlight) {
@@ -3523,18 +4058,50 @@ document.addEventListener('DOMContentLoaded', () => {
         const isHandoffMode = handoffEnabled && handoffActive;
         const isHandoffQueueMode = isHandoffMode && handoffBound;
         const handoffSession = isHandoffMode ? getHandoffSessionId() : '';
+        const attachmentSnapshot = hasAttachments
+            ? pendingAttachments.map((item) => ({
+                id: item.id,
+                name: item.name,
+                type: item.type,
+                size: item.size,
+                previewUrl: item.previewUrl
+            }))
+            : [];
+        const requestAttachments = hasAttachments ? buildAttachmentPayload(attachmentSnapshot) : [];
+        const displayAttachments = attachmentSnapshot.map((item) => ({
+            name: item.name,
+            type: item.type,
+            size: item.size,
+            src: item.previewUrl
+        }));
+
+        if (isHandoffMode && requestAttachments.length > 0) {
+            addMessage('bot', 'Lampiran gambar belum didukung saat chat dengan admin.');
+            return;
+        }
+
+        const historyBeforeSend = history.slice();
+        const historyUserText = cleanedText !== '' ? cleanedText : (requestAttachments.length > 0 ? '[Lampiran gambar]' : '');
 
         input.value = '';
+        if (hasAttachments) {
+            clearPendingAttachments();
+        }
         if (isHandoffQueueMode) {
+            if (cleanedText === '') {
+                return;
+            }
             refreshHandoffExpiry();
             enqueueHandoffMessage(cleanedText);
             input.focus();
             return;
         }
 
-        addMessage('user', cleanedText);
-        history.push({ sender: 'user', text: cleanedText });
-        saveHistory();
+        addMessage('user', cleanedText, false, { attachments: displayAttachments });
+        if (historyUserText !== '') {
+            history.push({ sender: 'user', text: historyUserText });
+            saveHistory();
+        }
         input.disabled = true;
         sendButton.disabled = true;
         setSendLoading(true);
@@ -3553,22 +4120,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     handoff: true,
                     handoff_timeout_sec: handoffTimeout,
                     handoff_reason: handoffReason,
-                    chatInput: cleanedText,
-                    text: cleanedText
+                    chatInput: cleanedText
                 }
                 : {
                     chatInput: cleanedText,
-                    text: cleanedText,
-                    inputType: 'text',
-                    attachments: [],
-                    history: history.slice(0, -1)
+                    inputType: requestAttachments.length > 0 ? 'image' : 'text',
+                    attachments: requestAttachments,
+                    history: historyBeforeSend
                 };
-
-            if (isHandoffMode && handoffSession) {
-                requestPayload.session_id = handoffSession;
-            } else if (!isHandoffMode && sessionToken) {
-                requestPayload.sessionId = sessionToken;
-            }
 
             const requestMeta = {
                 visitorId: visitorId,
@@ -3675,12 +4234,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         handoffInFlight = true;
-        setHandoffActive(true, { bound: false });
+        setHandoffActive(true, { bound: false, skipPolling: true });
         if (handoffButton) {
             handoffButton.disabled = true;
         }
         input.disabled = true;
         sendButton.disabled = true;
+        if (allowImageAttachments && attachmentButton) {
+            attachmentButton.disabled = true;
+        }
+        if (allowImageAttachments && attachmentInput) {
+            attachmentInput.disabled = true;
+        }
         const historySnapshot = history.length > 0 ? history.slice(-6) : [];
 
         if (handoffNotice) {
@@ -3700,17 +4265,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 handoff_init: true,
                 handoff_timeout_sec: handoffTimeout,
                 handoff_reason: handoffReason,
-                chatInput: handoffMessage,
-                text: handoffMessage
+                chatInput: handoffMessage
             };
             if (historySnapshot.length) {
                 requestPayload.handoff_history = historySnapshot;
             }
-
             const handoffSession = getHandoffSessionId();
-            if (handoffSession) {
-                requestPayload.session_id = handoffSession;
-            }
 
             const requestMeta = {
                 visitorId: visitorId,
@@ -3748,6 +4308,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 syncHandoffStateFromResponse(data);
                 syncTransportFromResponse(data);
+                if (handoffActive) {
+                    startHandoffPolling();
+                }
                 const handoffResponse = extractBotMessage(data);
                 const inboundId = data && data.handoff && data.handoff.message_id ? data.handoff.message_id : null;
                 if (handoffResponse && !isDuplicateInbound(handoffResponse, inboundId)) {
@@ -3766,6 +4329,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             input.disabled = false;
             sendButton.disabled = false;
+            if (allowImageAttachments && attachmentButton) {
+                attachmentButton.disabled = false;
+            }
+            if (allowImageAttachments && attachmentInput) {
+                attachmentInput.disabled = false;
+            }
         }
     }
 
@@ -3777,25 +4346,39 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!handoffSession) {
             return;
         }
-        if (canUseHandoffWs()) {
-            const wsResult = await sendHandoffOffWs('Sesi chat dengan Admin diakhiri oleh user.');
-            const wsData = wsResult && wsResult.data && typeof wsResult.data === 'object' ? wsResult.data : null;
-            if (wsData) {
-                syncHandoffStateFromResponse(wsData);
-                syncTransportFromResponse(wsData);
-            }
-            if (wsResult && wsResult.ok) {
-                return;
-            }
-        }
-        if (!chatConfig.proxy_url) {
+        const now = Date.now();
+        if (handoffOffInFlight) {
             return;
         }
+        if (lastHandoffOffSession === handoffSession && (now - lastHandoffOffAt) < handoffOffDedupMs) {
+            return;
+        }
+
+        handoffOffInFlight = true;
+        lastHandoffOffSession = handoffSession;
+        lastHandoffOffAt = now;
+
         try {
+            if (canUseHandoffWs()) {
+                const wsResult = await sendHandoffOffWs('Sesi chat dengan Admin diakhiri oleh user.');
+                const wsData = wsResult && wsResult.data && typeof wsResult.data === 'object' ? wsResult.data : null;
+                if (wsData) {
+                    syncHandoffStateFromResponse(wsData);
+                    syncTransportFromResponse(wsData);
+                }
+                if (wsResult && wsResult.ok) {
+                    return;
+                }
+                if (wsResult && wsResult.timeout) {
+                    return;
+                }
+            }
+            if (!chatConfig.proxy_url) {
+                return;
+            }
             const requestId = uuidv4();
             const requestPayload = {
                 route: 'handoff_off',
-                session_id: handoffSession,
                 text: 'Sesi chat dengan Admin diakhiri oleh user.'
             };
 
@@ -3822,11 +4405,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             // ignore handoff_off failures
+        } finally {
+            handoffOffInFlight = false;
         }
     }
 
     async function syncHandoffStatus() {
         if (!handoffEnabled || !chatConfig.proxy_url) {
+            return;
+        }
+        if (!handoffActive && !handoffSessionId) {
             return;
         }
         if (isRateLimited()) {
@@ -3835,15 +4423,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (handoffInFlight) {
             return;
         }
+        const now = Date.now();
+        if (handoffStatusInFlight) {
+            return;
+        }
+        if (lastHandoffStatusSyncAt > 0 && (now - lastHandoffStatusSyncAt) < handoffStatusThrottleMs) {
+            return;
+        }
         const handoffSession = getHandoffSessionId();
         if (!handoffSession) {
             return;
         }
+        handoffStatusInFlight = true;
+        lastHandoffStatusSyncAt = now;
         try {
             const requestId = uuidv4();
             const requestPayload = {
-                route: 'handoff_status',
-                session_id: handoffSession
+                route: 'handoff_status'
             };
 
             const requestMeta = {
@@ -3876,6 +4472,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             // ignore status sync failures
+        } finally {
+            handoffStatusInFlight = false;
         }
     }
 
@@ -3893,8 +4491,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const requestId = uuidv4();
             const requestPayload = {
-                route: 'handoff_poll',
-                session_id: handoffSession
+                route: 'handoff_poll'
             };
 
             const requestMeta = {
@@ -3977,6 +4574,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!handoffEnabled || !handoffActive) {
                 return;
             }
+            if (handoffInFlight) {
+                handoffPollDelayMs = handoffPollBaseMs;
+                scheduleNext(handoffPollDelayMs);
+                return;
+            }
             if (canUseHandoffWs() && streamSocket && streamSocket.readyState === WebSocket.OPEN) {
                 handoffPollDelayMs = handoffPollBaseMs;
                 scheduleNext(handoffPollDelayMs);
@@ -4001,7 +4603,7 @@ document.addEventListener('DOMContentLoaded', () => {
             scheduleNext(handoffPollDelayMs);
         };
 
-        runPollTick();
+        scheduleNext(handoffPollDelayMs);
     }
 
     function stopHandoffPolling() {
@@ -4033,9 +4635,15 @@ document.addEventListener('DOMContentLoaded', () => {
             updateProxyTimeoutFromConfig(bootstrapData);
             input.disabled = false;
             sendButton.disabled = false;
+            if (allowImageAttachments && attachmentButton) {
+                attachmentButton.disabled = false;
+            }
+            if (allowImageAttachments && attachmentInput) {
+                attachmentInput.disabled = false;
+            }
             root.classList.add('ai-chatbot-root--ready');
             ensureInputContrast();
-            if (handoffEnabled && getHandoffSessionId()) {
+            if (handoffEnabled && (handoffActive || handoffSessionId)) {
                 syncHandoffStatus();
             }
         } catch (error) {
@@ -4092,6 +4700,86 @@ document.addEventListener('DOMContentLoaded', () => {
             }).catch(() => {
                 // ignore copy failures
             });
+        });
+    }
+    if (allowImageAttachments && attachmentButton && attachmentInput) {
+        attachmentButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (attachmentButton.disabled || attachmentInput.disabled) {
+                return;
+            }
+            attachmentInput.click();
+        });
+
+        attachmentInput.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!target || !target.files || target.files.length === 0) {
+                return;
+            }
+            enqueueAttachmentFiles(target.files);
+        });
+    }
+    if (allowImageAttachments && attachmentList) {
+        attachmentList.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!target) {
+                return;
+            }
+            const removeButton = target.closest('.chatbot-attachment-remove');
+            if (!removeButton) {
+                return;
+            }
+            event.preventDefault();
+            removePendingAttachmentById(removeButton.dataset.attachmentId || '');
+        });
+    }
+    if (allowImageAttachments) {
+        chatFrame.addEventListener('dragenter', (event) => {
+            if (!hasFilesInDataTransfer(event.dataTransfer)) {
+                return;
+            }
+            event.preventDefault();
+            attachmentDragDepth += 1;
+            form.classList.add('is-dragover');
+        });
+
+        chatFrame.addEventListener('dragover', (event) => {
+            if (!hasFilesInDataTransfer(event.dataTransfer)) {
+                return;
+            }
+            event.preventDefault();
+            if (event.dataTransfer) {
+                event.dataTransfer.dropEffect = 'copy';
+            }
+            form.classList.add('is-dragover');
+        });
+
+        chatFrame.addEventListener('dragleave', (event) => {
+            if (!hasFilesInDataTransfer(event.dataTransfer)) {
+                return;
+            }
+            event.preventDefault();
+            attachmentDragDepth = Math.max(0, attachmentDragDepth - 1);
+            if (attachmentDragDepth === 0) {
+                form.classList.remove('is-dragover');
+            }
+        });
+
+        chatFrame.addEventListener('drop', (event) => {
+            if (!hasFilesInDataTransfer(event.dataTransfer)) {
+                return;
+            }
+            event.preventDefault();
+            const files = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files : null;
+            resetAttachmentDragState();
+            if (!files || files.length === 0) {
+                return;
+            }
+            enqueueAttachmentFiles(files);
+        });
+
+        chatFrame.addEventListener('dragend', () => {
+            resetAttachmentDragState();
         });
     }
     form.addEventListener('submit', (event) => {
