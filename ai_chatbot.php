@@ -2118,11 +2118,14 @@ function ai_chatbot_stream()
 
     ai_chatbot_ensure_session();
 
-    $session_id = isset($_GET['session_id']) ? ai_chatbot_limit_length((string) $_GET['session_id'], 120) : '';
+    $session_id = isset($_GET['sessionId']) ? ai_chatbot_limit_length((string) $_GET['sessionId'], 120) : '';
+    if ($session_id === '' && isset($_GET['session_id'])) {
+        $session_id = ai_chatbot_limit_length((string) $_GET['session_id'], 120);
+    }
     $token = isset($_GET['token']) ? ai_chatbot_limit_length((string) $_GET['token'], 200) : '';
     if ($session_id === '' || $token === '') {
         http_response_code(400);
-        echo 'Missing session_id or token';
+        echo 'Missing sessionId or token';
         exit;
     }
 
@@ -2144,7 +2147,7 @@ function ai_chatbot_stream()
     $base = ai_chatbot_gateway_base_url($proxy_config['endpoint'] ?? '');
     $transport_endpoint = $context['endpoint'] ?? '';
     $sse_url = ai_chatbot_build_sse_url($base, $transport_endpoint, [
-        'session_id' => $session_id,
+        'sessionId' => $session_id,
         'token' => $token,
     ]);
 
@@ -2272,7 +2275,21 @@ function ai_chatbot_run_proxy()
 
     $chat_input = isset($payload['chatInput']) ? trim((string) $payload['chatInput']) : '';
     $payload_text = isset($payload['text']) ? trim((string) $payload['text']) : '';
-    if ($chat_input === '' && !$handoff_request) {
+    $attachments = [];
+    if (isset($payload['attachments']) && is_array($payload['attachments'])) {
+        foreach (array_values($payload['attachments']) as $attachment_item) {
+            if (!is_array($attachment_item)) {
+                continue;
+            }
+            $attachments[] = $attachment_item;
+            if (count($attachments) >= 5) {
+                break;
+            }
+        }
+    }
+    $has_attachments = count($attachments) > 0;
+
+    if ($chat_input === '' && !$handoff_request && !$has_attachments) {
         ai_chatbot_send_error('Pesan tidak boleh kosong.', 422, [
             'proxy_id' => $proxy_id,
         ]);
@@ -2336,9 +2353,12 @@ function ai_chatbot_run_proxy()
 
     if ($chat_input === '' && $handoff_request && $payload_text !== '') {
         $chat_input = $payload_text;
+    } elseif ($chat_input === '' && !$handoff_request && $has_attachments) {
+        $chat_input = 'User mengirim lampiran gambar.';
     }
     $payload['chatInput'] = ai_chatbot_limit_length($chat_input, $max_chars > 0 ? $max_chars : 4000);
     $payload['text'] = $payload['chatInput'];
+    $payload['attachments'] = $attachments;
 
     $history_limit = 200;
     $normalized_history = [];
@@ -2470,20 +2490,20 @@ function ai_chatbot_run_proxy()
     if (!empty($clean_meta['sessionId'])) {
         $session_id = trim((string) $clean_meta['sessionId']);
     }
-    if ($session_id === '' && !empty($payload['session_id'])) {
-        $session_id = trim((string) $payload['session_id']);
-    }
     if ($session_id === '' && !empty($payload['sessionId'])) {
         $session_id = trim((string) $payload['sessionId']);
+    }
+    if ($session_id === '' && !empty($payload['session_id'])) {
+        $session_id = trim((string) $payload['session_id']);
     }
     if ($session_id === '' && !empty($payload['sessionid'])) {
         $session_id = trim((string) $payload['sessionid']);
     }
-    if ($session_id === '' && !empty($request['session_id'])) {
-        $session_id = trim((string) $request['session_id']);
-    }
     if ($session_id === '' && !empty($request['sessionId'])) {
         $session_id = trim((string) $request['sessionId']);
+    }
+    if ($session_id === '' && !empty($request['session_id'])) {
+        $session_id = trim((string) $request['session_id']);
     }
     if ($session_id === '' && session_status() === PHP_SESSION_ACTIVE) {
         $session_id = session_id();
@@ -2498,7 +2518,7 @@ function ai_chatbot_run_proxy()
         if ($next_csrf_token !== '') {
             $extra['csrf_token'] = $next_csrf_token;
         }
-        ai_chatbot_send_error('session_id wajib diisi untuk endpoint gateway.', 422, $extra);
+        ai_chatbot_send_error('sessionId wajib diisi untuk endpoint gateway.', 422, $extra);
     }
 
     $request_id = '';
@@ -2525,12 +2545,14 @@ function ai_chatbot_run_proxy()
         return $value !== '';
     });
 
+    $forward_meta = $clean_meta;
+    if ($session_id !== '' && isset($forward_meta['sessionId'])) {
+        unset($forward_meta['sessionId']);
+    }
+
     $extra = [
         'wire_chatbot' => false,
     ];
-    if ($session_id !== '') {
-        $extra['session_id'] = $session_id;
-    }
     if (!empty($clean_meta['contact_id'])) {
         $extra['contact_id'] = (string) $clean_meta['contact_id'];
     }
@@ -2567,23 +2589,20 @@ function ai_chatbot_run_proxy()
             'handoff_timeout_sec' => $handoff_timeout > 0 ? $handoff_timeout : null,
             'handoff_reason' => $handoff_reason,
             'extra' => $extra,
-            'metadata' => $metadata,
-            'meta' => $clean_meta,
+            'meta' => $forward_meta,
             'timestamp' => time(),
             'proxy_id' => $proxy_id,
         ];
 
         if ($payload['chatInput'] !== '') {
             $forward_body['chatInput'] = $payload['chatInput'];
-            $forward_body['text'] = $payload['chatInput'];
         } elseif ($is_gateway_endpoint) {
             $fallback_message = 'User meminta chat dengan admin.';
             $forward_body['chatInput'] = $fallback_message;
-            $forward_body['text'] = $fallback_message;
         }
 
         if ($session_id !== '') {
-            $forward_body['session_id'] = $session_id;
+            $forward_body['sessionId'] = $session_id;
         }
     } else {
         $input_type = isset($payload['inputType']) ? strtolower(trim((string) $payload['inputType'])) : 'text';
@@ -2591,13 +2610,8 @@ function ai_chatbot_run_proxy()
         if (!in_array($input_type, $allowed_types, true)) {
             $input_type = 'text';
         }
-
-        $attachments = [];
-        if (isset($payload['attachments']) && is_array($payload['attachments'])) {
-            $attachments = array_values($payload['attachments']);
-            if (count($attachments) > 5) {
-                $attachments = array_slice($attachments, 0, 5);
-            }
+        if ($has_attachments && $input_type === 'text') {
+            $input_type = 'image';
         }
         $payload['inputType'] = $input_type;
         $payload['attachments'] = $attachments;
@@ -2648,27 +2662,14 @@ function ai_chatbot_run_proxy()
             'content' => $payload['chatInput'],
         ];
 
-        $body_payload = [
-            'chatInput' => $payload['chatInput'],
-            'inputType' => $input_type,
-            'attachments' => $attachments,
-            'text' => $payload['chatInput'],
-        ];
-        $payload['body'] = $body_payload;
-
         $forward_body = [
             'messages' => $messages,
             'chatInput' => $payload['chatInput'],
-            'text' => $payload['chatInput'],
             'inputType' => $input_type,
             'attachments' => $attachments,
-            'body' => $body_payload,
             'extra' => $extra,
-            'metadata' => $metadata,
-            'input' => $payload['chatInput'],
             'history' => $payload['history'],
-            'meta' => $clean_meta,
-            'payload' => $payload,
+            'meta' => $forward_meta,
             'timestamp' => time(),
             'proxy_id' => $proxy_id,
         ];
@@ -2683,7 +2684,7 @@ function ai_chatbot_run_proxy()
         }
 
         if ($session_id !== '') {
-            $forward_body['session_id'] = $session_id;
+            $forward_body['sessionId'] = $session_id;
         }
     }
 
@@ -2739,7 +2740,7 @@ function ai_chatbot_run_proxy()
         $timeout = max($timeout, $handoff_timeout + 5);
     }
 
-    $result = ai_chatbot_post_with_retry($endpoint, $headers, $request_body, $timeout);
+    $result = ai_chatbot_post_with_retry($endpoint, $headers, $request_body, $timeout, 1, 0, 0);
 
     if (!$result['success']) {
         $error_message = 'Gagal terhubung ke layanan AI.';
@@ -2783,10 +2784,20 @@ function ai_chatbot_run_proxy()
         isset($decoded['transport']['mode']) &&
         strtolower((string) $decoded['transport']['mode']) === 'sse'
     ) {
-        if (!isset($decoded['transport']['session_id']) || $decoded['transport']['session_id'] === '') {
-            $decoded['transport']['session_id'] = $session_id;
+        $transport_session_id = '';
+        if (!empty($decoded['transport']['sessionId'])) {
+            $transport_session_id = trim((string) $decoded['transport']['sessionId']);
+        } elseif (!empty($decoded['transport']['session_id'])) {
+            $transport_session_id = trim((string) $decoded['transport']['session_id']);
         }
-        ai_chatbot_store_sse_context($session_id, $decoded['transport']);
+        if ($transport_session_id === '') {
+            $transport_session_id = $session_id;
+        }
+        if ($transport_session_id !== '') {
+            $decoded['transport']['sessionId'] = $transport_session_id;
+        }
+        unset($decoded['transport']['session_id']);
+        ai_chatbot_store_sse_context($transport_session_id, $decoded['transport']);
     }
 
     if (
@@ -2795,9 +2806,19 @@ function ai_chatbot_run_proxy()
         isset($decoded['transport']['mode']) &&
         strtolower((string) $decoded['transport']['mode']) === 'ws'
     ) {
-        if (!isset($decoded['transport']['session_id']) || $decoded['transport']['session_id'] === '') {
-            $decoded['transport']['session_id'] = $session_id;
+        $transport_session_id = '';
+        if (!empty($decoded['transport']['sessionId'])) {
+            $transport_session_id = trim((string) $decoded['transport']['sessionId']);
+        } elseif (!empty($decoded['transport']['session_id'])) {
+            $transport_session_id = trim((string) $decoded['transport']['session_id']);
         }
+        if ($transport_session_id === '') {
+            $transport_session_id = $session_id;
+        }
+        if ($transport_session_id !== '') {
+            $decoded['transport']['sessionId'] = $transport_session_id;
+        }
+        unset($decoded['transport']['session_id']);
 
         $existing_ws_url = '';
         if (!empty($decoded['transport']['ws_url'])) {
@@ -2816,7 +2837,7 @@ function ai_chatbot_run_proxy()
                 $decoded['transport']['base_url'] = $ws_base;
             }
             $ws_url = ai_chatbot_build_ws_url($ws_base, (string) ($decoded['transport']['endpoint'] ?? ''), [
-                'session_id' => $decoded['transport']['session_id'],
+                'sessionId' => (string) ($decoded['transport']['sessionId'] ?? ''),
                 'token' => (string) ($decoded['transport']['token'] ?? ''),
             ]);
             if ($ws_url !== '') {
