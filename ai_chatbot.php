@@ -273,7 +273,7 @@ if (function_exists('register_hook')) {
 
 if (!defined('AI_CHATBOT_SNIPPET_VERSION')) {
 
-    define('AI_CHATBOT_SNIPPET_VERSION', 2);
+    define('AI_CHATBOT_SNIPPET_VERSION', 3);
 
 }
 
@@ -508,7 +508,7 @@ function ai_chatbot_group_footer_options(array $options)
 
 function ai_chatbot_snippet_body()
 {
-    return '{include file="[plugin]ai_chatbot.tpl"}';
+    return '{if !empty($_ai_chatbot_footer_template_available)}{include file="[plugin]ai_chatbot.tpl"}{/if}';
 }
 
 function ai_chatbot_injection_snippet_block()
